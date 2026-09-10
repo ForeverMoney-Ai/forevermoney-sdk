@@ -27,5 +27,5 @@ jobs:
             - run: npm ci --no-audit
             - run: npm run test:fork
               env:
-                  BASE_RPC_URL: ${{ secrets.BASE_RPC_URL }}
-                  SUBTENSOR_RPC_URL: ${{ secrets.SUBTENSOR_RPC_URL }}
+                  BASE_RPC_URL: ${{ secrets.BASE_RPC_URL || 'https://mainnet.base.org' }}
+                  SUBTENSOR_RPC_URL: ${{ secrets.SUBTENSOR_RPC_URL || 'https://lite.chain.opentensor.ai' }}

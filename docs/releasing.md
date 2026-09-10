@@ -15,8 +15,9 @@ the packed npm artifact have both been verified.
    tags matching `v*`.
 5. Enable GitHub private vulnerability reporting and protect the default branch
    with the `Verify (Node 22)` and `Verify (Node 24)` checks.
-6. Add `BASE_RPC_URL` and `SUBTENSOR_RPC_URL` secrets to the `production-fork`
-   environment.
+6. Optionally add `BASE_RPC_URL` and `SUBTENSOR_RPC_URL` secrets to the
+   `production-fork` environment. The workflow otherwise uses the public Base
+   and Subtensor RPC endpoints for its read-only production checks.
 
 The publish workflow uses npm trusted publishing. Do not add a long-lived npm
 write token to the repository.
