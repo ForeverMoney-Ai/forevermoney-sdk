@@ -17,6 +17,9 @@ Fork tests start local Anvil nodes from the real Base and Subtensor chains.
 They use the SDK's production addresses and selectors unchanged; there is no
 fork manifest.
 
+Use Anvil 1.4.4, matching the pinned CI toolchain. Anvil 1.8.1 rejects the
+Subtensor fork's missing `prevrandao` header before executing contract reads.
+
 ```bash
 BASE_RPC_URL=https://... \
 SUBTENSOR_RPC_URL=https://... \

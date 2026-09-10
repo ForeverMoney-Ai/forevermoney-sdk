@@ -23,7 +23,8 @@ jobs:
                   cache: npm
             - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1.9.1
               with:
-                  version: stable
+                  # Anvil 1.8.1 rejects Subtensor's missing prevrandao header.
+                  version: v1.4.4
             - run: npm ci --no-audit
             - run: npm run test:fork
               env:
