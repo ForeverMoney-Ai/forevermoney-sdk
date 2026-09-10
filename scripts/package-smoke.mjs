@@ -56,6 +56,7 @@ const expectedExports = [
     'ss58ToPublicKey',
     'toEip1193Transaction',
     'toEthersTransaction',
+    'toViemTransaction',
     'vaultManagerFromCreationReceipt',
 ].sort()
 

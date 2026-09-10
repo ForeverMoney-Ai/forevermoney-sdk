@@ -1,4 +1,10 @@
-import { Contract, Interface, ZeroAddress } from 'ethers'
+import {
+    encodeFunctionData,
+    parseAbi,
+    zeroAddress,
+    type Address,
+    type PublicClient,
+} from 'viem'
 import {
     ERC20_ABI,
     VAULT_FACTORY_ABI,
@@ -12,7 +18,6 @@ import {
     type TransactionPlan,
     type TransactionStep,
 } from '../core/plans.js'
-import type { BrowserProvider } from 'ethers'
 import {
     assertArray,
     assertBoolean,
@@ -21,16 +26,13 @@ import {
     assertRecord,
     normalizeOptionalBytes32,
 } from '../core/validation.js'
-
-const erc20Interface = new Interface(ERC20_ABI)
-const factoryInterface = new Interface(VAULT_FACTORY_ABI)
-const managerInterface = new Interface(VAULT_MANAGER_ABI)
-
+const erc20Abi = parseAbi(ERC20_ABI)
+const factoryAbi = parseAbi(VAULT_FACTORY_ABI)
+const managerAbi = parseAbi(VAULT_MANAGER_ABI)
 export interface VaultStashToken {
     readonly token: string
     readonly amount: bigint
 }
-
 export interface CreateVaultRequest {
     readonly owner: string
     readonly associatedMiner?: string
@@ -40,12 +42,10 @@ export interface CreateVaultRequest {
     readonly positionManagerImplementation: string
     readonly stashTokens: readonly VaultStashToken[]
 }
-
 export interface VaultTokenAllowance {
     readonly token: string
     readonly allowance: bigint
 }
-
 function step(
     kind: TransactionStep['kind'],
     label: string,
@@ -66,10 +66,9 @@ function step(
         },
     }
 }
-
 function normalizeStashTokens(
     stashTokens: readonly VaultStashToken[]
-): readonly VaultStashToken[] {
+): readonly { readonly token: Address; readonly amount: bigint }[] {
     assertArray(stashTokens, 'Stash tokens')
     const seen = new Set<string>()
     return stashTokens.map((entry) => {
@@ -96,7 +95,6 @@ function normalizeStashTokens(
         })
     })
 }
-
 function allowanceMap(
     allowances: readonly VaultTokenAllowance[]
 ): ReadonlyMap<string, bigint> {
@@ -122,7 +120,6 @@ function allowanceMap(
     }
     return result
 }
-
 function assertAllowanceSet(
     allowances: ReadonlyMap<string, bigint>,
     tokens: readonly VaultStashToken[]
@@ -144,7 +141,6 @@ function assertAllowanceSet(
         }
     }
 }
-
 export function buildCreateVaultPlan(
     input: CreateVaultRequest & {
         readonly allowances: readonly VaultTokenAllowance[]
@@ -167,7 +163,6 @@ export function buildCreateVaultPlan(
     const { base } = foreverMoneyDeployment
     const steps: TransactionStep[] = []
     let value = 0n
-
     for (const stash of stashTokens) {
         if (stash.token === base.contracts.weth) {
             value += stash.amount
@@ -188,30 +183,34 @@ export function buildCreateVaultPlan(
                     `Approve ${stash.token} for the vault factory`,
                     owner,
                     stash.token,
-                    erc20Interface.encodeFunctionData('approve', [
-                        base.contracts.vaultFactory,
-                        stash.amount,
-                    ])
+                    encodeFunctionData({
+                        abi: erc20Abi,
+                        functionName: 'approve',
+                        args: [base.contracts.vaultFactory, stash.amount],
+                    })
                 )
             )
         }
     }
-
     steps.push(
         step(
             'transaction',
             'Create ForeverMoney vault',
             owner,
             base.contracts.vaultFactory,
-            factoryInterface.encodeFunctionData('create', [
-                owner,
-                associatedMiner,
-                akAddress,
-                poolManager,
-                poolAddress,
-                positionManagerImplementation,
-                stashTokens,
-            ]),
+            encodeFunctionData({
+                abi: factoryAbi,
+                functionName: 'create',
+                args: [
+                    owner,
+                    associatedMiner,
+                    akAddress,
+                    poolManager,
+                    poolAddress,
+                    positionManagerImplementation,
+                    stashTokens,
+                ],
+            }),
             value
         )
     )
@@ -221,9 +220,8 @@ export function buildCreateVaultPlan(
         steps,
     })
 }
-
 export async function prepareCreateVault(
-    provider: BrowserProvider,
+    provider: PublicClient,
     input: CreateVaultRequest
 ): Promise<TransactionPlan> {
     const owner = normalizeEvmAddress(input.owner)
@@ -234,26 +232,25 @@ export async function prepareCreateVault(
     const allowances = await Promise.all(
         erc20Stash.map(async ({ token }) => ({
             token,
-            allowance: (await new Contract(
-                token,
-                ERC20_ABI,
-                provider
-            ).getFunction('allowance')(
-                owner,
-                foreverMoneyDeployment.base.contracts.vaultFactory
-            )) as bigint,
+            allowance: await provider.readContract({
+                address: token,
+                abi: erc20Abi,
+                functionName: 'allowance',
+                args: [
+                    owner,
+                    foreverMoneyDeployment.base.contracts.vaultFactory,
+                ],
+            }),
         }))
     )
     return buildCreateVaultPlan({ ...input, allowances })
 }
-
 export interface DepositVaultRequest {
     readonly owner: string
     readonly manager: string
     readonly akAddress: string
     readonly deposits: readonly VaultStashToken[]
 }
-
 export function buildDepositVaultPlan(
     input: DepositVaultRequest & {
         readonly allowances: readonly VaultTokenAllowance[]
@@ -280,11 +277,11 @@ export function buildDepositVaultPlan(
                     'Deposit native ETH into the vault as WETH',
                     owner,
                     manager,
-                    managerInterface.encodeFunctionData('topUpAk', [
-                        akAddress,
-                        ZeroAddress,
-                        deposit.amount,
-                    ]),
+                    encodeFunctionData({
+                        abi: managerAbi,
+                        functionName: 'topUpAk',
+                        args: [akAddress, zeroAddress, deposit.amount],
+                    }),
                     deposit.amount
                 )
             )
@@ -304,10 +301,11 @@ export function buildDepositVaultPlan(
                     `Approve ${deposit.token} for the vault manager`,
                     owner,
                     deposit.token,
-                    erc20Interface.encodeFunctionData('approve', [
-                        manager,
-                        deposit.amount,
-                    ])
+                    encodeFunctionData({
+                        abi: erc20Abi,
+                        functionName: 'approve',
+                        args: [manager, deposit.amount],
+                    })
                 )
             )
         }
@@ -317,11 +315,11 @@ export function buildDepositVaultPlan(
                 `Deposit ${deposit.token} into the vault`,
                 owner,
                 manager,
-                managerInterface.encodeFunctionData('topUpAk', [
-                    akAddress,
-                    deposit.token,
-                    deposit.amount,
-                ])
+                encodeFunctionData({
+                    abi: managerAbi,
+                    functionName: 'topUpAk',
+                    args: [akAddress, deposit.token, deposit.amount],
+                })
             )
         )
     }
@@ -331,9 +329,8 @@ export function buildDepositVaultPlan(
         steps,
     })
 }
-
 export async function prepareDepositVault(
-    provider: BrowserProvider,
+    provider: PublicClient,
     input: DepositVaultRequest
 ): Promise<TransactionPlan> {
     const owner = normalizeEvmAddress(input.owner)
@@ -345,16 +342,16 @@ export async function prepareDepositVault(
     const allowances = await Promise.all(
         erc20Deposits.map(async ({ token }) => ({
             token,
-            allowance: (await new Contract(
-                token,
-                ERC20_ABI,
-                provider
-            ).getFunction('allowance')(owner, manager)) as bigint,
+            allowance: await provider.readContract({
+                address: token,
+                abi: erc20Abi,
+                functionName: 'allowance',
+                args: [owner, manager],
+            }),
         }))
     )
     return buildDepositVaultPlan({ ...input, allowances })
 }
-
 export interface WithdrawVaultRequest {
     readonly owner: string
     readonly manager: string
@@ -364,7 +361,6 @@ export interface WithdrawVaultRequest {
     readonly decreaseTokenIds: readonly bigint[]
     readonly unwrapWeth: boolean
 }
-
 export function buildWithdrawVaultPlan(
     input: WithdrawVaultRequest
 ): TransactionPlan {
@@ -393,21 +389,21 @@ export function buildWithdrawVaultPlan(
                 'Withdraw assets from the vault',
                 owner,
                 manager,
-                managerInterface.encodeFunctionData(
-                    'withdrawFromAkAndPositions',
-                    [
+                encodeFunctionData({
+                    abi: managerAbi,
+                    functionName: 'withdrawFromAkAndPositions',
+                    args: [
                         akAddress,
                         input.amount0,
                         input.amount1,
                         input.decreaseTokenIds,
                         input.unwrapWeth,
-                    ]
-                )
+                    ],
+                })
             ),
         ],
     })
 }
-
 export function buildClaimVaultFeesPlan(input: {
     readonly owner: string
     readonly manager: string
@@ -425,14 +421,15 @@ export function buildClaimVaultFeesPlan(input: {
                 'Claim vault fees',
                 owner,
                 manager,
-                managerInterface.encodeFunctionData('claimFees(address)', [
-                    akAddress,
-                ])
+                encodeFunctionData({
+                    abi: managerAbi,
+                    functionName: 'claimFees',
+                    args: [akAddress],
+                })
             ),
         ],
     })
 }
-
 export function buildSetVaultStakingPlan(input: {
     readonly owner: string
     readonly manager: string
@@ -453,10 +450,11 @@ export function buildSetVaultStakingPlan(input: {
                 `${input.staking ? 'Stake' : 'Unstake'} the vault position`,
                 owner,
                 manager,
-                managerInterface.encodeFunctionData(
-                    `${action}(address,bytes)`,
-                    [akAddress, '0x']
-                )
+                encodeFunctionData({
+                    abi: managerAbi,
+                    functionName: action,
+                    args: [akAddress, '0x'],
+                })
             ),
         ],
     })

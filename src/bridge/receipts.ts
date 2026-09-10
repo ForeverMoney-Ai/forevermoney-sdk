@@ -1,4 +1,4 @@
-import { Interface, isHexString } from 'ethers'
+import { decodeEventLog, isHex, parseAbi, type Hex } from 'viem'
 import { ALPHA_GATEWAY_ABI, SPOKE_GATEWAY_ABI } from '../abis/index.js'
 import {
     foreverMoneyDeployment,
@@ -10,8 +10,8 @@ import { isLogFrom, type TransactionReceiptLike } from '../core/receipts.js'
 
 export type { ReceiptLog, TransactionReceiptLike } from '../core/receipts.js'
 
-const alphaGatewayInterface = new Interface(ALPHA_GATEWAY_ABI)
-const spokeGatewayInterface = new Interface(SPOKE_GATEWAY_ABI)
+const alphaGatewayAbi = parseAbi(ALPHA_GATEWAY_ABI)
+const spokeGatewayAbi = parseAbi(SPOKE_GATEWAY_ABI)
 
 export type BridgeDirection =
     | 'base-to-subtensor'
@@ -56,28 +56,32 @@ export function bridgeMessageIdFromReceipt(
         evmChainFromBridgeDirection(direction)
     )
     const evmToSubtensor = isEvmToSubtensorDirection(direction)
-    const [address, contractInterface, eventName] = evmToSubtensor
-        ? [evm.contracts.gateway, spokeGatewayInterface, 'BridgedToFinney']
+    const [address, contractAbi, eventName] = evmToSubtensor
+        ? [evm.contracts.gateway, spokeGatewayAbi, 'BridgedToFinney']
         : [
               foreverMoneyDeployment.subtensor.contracts.gateway,
-              alphaGatewayInterface,
+              alphaGatewayAbi,
               'BridgedOut',
           ]
 
     for (const log of receipt.logs) {
         if (!isLogFrom(log, address)) continue
         try {
-            const parsed = contractInterface.parseLog({
-                data: log.data,
-                topics: [...log.topics],
+            const parsed = decodeEventLog({
+                abi: contractAbi,
+                data: log.data as Hex,
+                topics: [...log.topics] as [Hex, ...Hex[]],
             })
-            const messageId = parsed?.args.messageId
+            const messageId =
+                'messageId' in parsed.args ? parsed.args.messageId : undefined
             if (
-                parsed?.name === eventName &&
+                parsed.eventName === eventName &&
                 typeof messageId === 'string' &&
-                isHexString(messageId, 32) &&
+                isHex(messageId, { strict: true }) &&
+                messageId.length === 66 &&
                 (evmToSubtensor ||
-                    parsed.args.destChainSelector === evm.ccipSelector)
+                    ('destChainSelector' in parsed.args &&
+                        parsed.args.destChainSelector === evm.ccipSelector))
             ) {
                 return messageId.toLowerCase()
             }

@@ -1,4 +1,4 @@
-import { Contract, Interface } from 'ethers'
+import { encodeFunctionData, parseAbi, type PublicClient } from 'viem'
 import {
     ALPHA_GATEWAY_ABI,
     ERC20_ABI,
@@ -28,19 +28,14 @@ import {
     type TransactionStep,
 } from '../core/plans.js'
 import { assertNonNegativeAmount } from '../core/validation.js'
-import type { BrowserProvider } from 'ethers'
-
-const erc20Interface = new Interface(ERC20_ABI)
-const spokeInterface = new Interface(SPOKE_GATEWAY_ABI)
-const alphaInterface = new Interface(ALPHA_GATEWAY_ABI)
-const stakingInterface = new Interface(STAKING_ABI)
-
-export const MIN_LIQUID_EVM_TO_SUBTENSOR_WEI = 10_000_000_000_000_000n
+const erc20Abi = parseAbi(ERC20_ABI)
+const spokeAbi = parseAbi(SPOKE_GATEWAY_ABI)
+const alphaAbi = parseAbi(ALPHA_GATEWAY_ABI)
+const stakingAbi = parseAbi(STAKING_ABI)
+export const MIN_LIQUID_EVM_TO_SUBTENSOR_WEI = 10000000000000000n
 export const MIN_LIQUID_BASE_TO_SUBTENSOR_WEI = MIN_LIQUID_EVM_TO_SUBTENSOR_WEI
-
 export type SubtensorDelivery = 'liquid' | 'staked'
 export type SubtensorSource = 'liquid' | 'staked'
-
 export interface EvmToSubtensorRequest {
     readonly evmChain: ForeverMoneyEvmChain
     readonly sender: string
@@ -48,7 +43,6 @@ export interface EvmToSubtensorRequest {
     readonly destination: string
     readonly delivery: SubtensorDelivery
 }
-
 export interface SubtensorToEvmRequest {
     readonly evmChain: ForeverMoneyEvmChain
     readonly sender: string
@@ -57,16 +51,13 @@ export interface SubtensorToEvmRequest {
     readonly source: SubtensorSource
     readonly netuid?: bigint
 }
-
 export type BaseToSubtensorRequest = Omit<EvmToSubtensorRequest, 'evmChain'>
 export type SubtensorToBaseRequest = Omit<SubtensorToEvmRequest, 'evmChain'>
-
 export interface BridgePreparation {
     readonly exactNetworkFeeWei: bigint
     readonly transactionValueWei: bigint
     readonly plan: TransactionPlan
 }
-
 function assertDelivery(value: unknown): asserts value is SubtensorDelivery {
     if (value !== 'liquid' && value !== 'staked') {
         throw new ForeverMoneyError(
@@ -75,7 +66,6 @@ function assertDelivery(value: unknown): asserts value is SubtensorDelivery {
         )
     }
 }
-
 function assertSource(value: unknown): asserts value is SubtensorSource {
     if (value !== 'liquid' && value !== 'staked') {
         throw new ForeverMoneyError(
@@ -84,7 +74,6 @@ function assertSource(value: unknown): asserts value is SubtensorSource {
         )
     }
 }
-
 function assertBaseToSubtensorAmount(
     amountWei: bigint,
     delivery: SubtensorDelivery
@@ -101,19 +90,16 @@ function assertBaseToSubtensorAmount(
         )
     }
 }
-
 export interface BuildEvmToSubtensorPlanRequest extends EvmToSubtensorRequest {
     readonly allowanceWei: bigint
     readonly exactNetworkFeeWei: bigint
     readonly estimatedBridgeGas?: bigint
 }
-
 export interface BuildSubtensorToEvmPlanRequest extends SubtensorToEvmRequest {
     readonly stakingAllowanceRao?: bigint
     readonly exactNetworkFeeWei: bigint
     readonly estimatedBridgeGas?: bigint
 }
-
 export type BuildBaseToSubtensorPlanRequest = Omit<
     BuildEvmToSubtensorPlanRequest,
     'evmChain'
@@ -122,7 +108,6 @@ export type BuildSubtensorToBasePlanRequest = Omit<
     BuildSubtensorToEvmPlanRequest,
     'evmChain'
 >
-
 function transactionStep(
     kind: TransactionStep['kind'],
     label: string,
@@ -148,7 +133,6 @@ function transactionStep(
         },
     }
 }
-
 export function buildEvmToSubtensorPlan(
     input: BuildEvmToSubtensorPlanRequest
 ): TransactionPlan {
@@ -166,7 +150,6 @@ export function buildEvmToSubtensorPlan(
     }
     const evm = getForeverMoneyEvmDeployment(input.evmChain)
     const steps: TransactionStep[] = []
-
     if (input.allowanceWei < input.amountWei) {
         steps.push(
             transactionStep(
@@ -175,15 +158,15 @@ export function buildEvmToSubtensorPlan(
                 evm.chainId,
                 sender,
                 evm.contracts.wrappedTao,
-                erc20Interface.encodeFunctionData('approve', [
-                    evm.contracts.gateway,
-                    input.amountWei,
-                ]),
+                encodeFunctionData({
+                    abi: erc20Abi,
+                    functionName: 'approve',
+                    args: [evm.contracts.gateway, input.amountWei],
+                }),
                 0n
             )
         )
     }
-
     const value = feeWithBuffer(input.exactNetworkFeeWei)
     steps.push(
         transactionStep(
@@ -192,17 +175,17 @@ export function buildEvmToSubtensorPlan(
             evm.chainId,
             sender,
             evm.contracts.gateway,
-            spokeInterface.encodeFunctionData(
-                'bridgeToFinney(address,uint256,(bytes32,address,bool,uint256))',
-                [evm.contracts.wrappedTao, input.amountWei, exit]
-            ),
+            encodeFunctionData({
+                abi: spokeAbi,
+                functionName: 'bridgeToFinney',
+                args: [evm.contracts.wrappedTao, input.amountWei, exit],
+            }),
             value,
             input.estimatedBridgeGas === undefined
                 ? undefined
                 : gasLimitWithBuffer(input.estimatedBridgeGas)
         )
     )
-
     return createTransactionPlan({
         action:
             evm.key === 'base'
@@ -212,13 +195,11 @@ export function buildEvmToSubtensorPlan(
         steps,
     })
 }
-
 export function buildBaseToSubtensorPlan(
     input: BuildBaseToSubtensorPlanRequest
 ): TransactionPlan {
     return buildEvmToSubtensorPlan({ ...input, evmChain: 'base' })
 }
-
 export function buildSubtensorToEvmPlan(
     input: BuildSubtensorToEvmPlanRequest
 ): TransactionPlan {
@@ -231,7 +212,6 @@ export function buildSubtensorToEvmPlan(
     const evm = getForeverMoneyEvmDeployment(input.evmChain)
     const amountRao = input.amountWei / EVM_WEI_PER_RAO
     const steps: TransactionStep[] = []
-
     if (input.source === 'staked') {
         if (input.netuid === undefined) {
             throw new ForeverMoneyError(
@@ -255,11 +235,15 @@ export function buildSubtensorToEvmPlan(
                     subtensor.chainId,
                     sender,
                     subtensor.contracts.stakingPrecompile,
-                    stakingInterface.encodeFunctionData('approve', [
-                        subtensor.contracts.gateway,
-                        input.netuid,
-                        amountRao,
-                    ]),
+                    encodeFunctionData({
+                        abi: stakingAbi,
+                        functionName: 'approve',
+                        args: [
+                            subtensor.contracts.gateway,
+                            input.netuid,
+                            amountRao,
+                        ],
+                    }),
                     0n
                 )
             )
@@ -273,7 +257,6 @@ export function buildSubtensorToEvmPlan(
             'netuid and staking allowance are only valid for staked TAO.'
         )
     }
-
     const taoAmount = input.source === 'liquid' ? input.amountWei : 0n
     const stakedAlphaRao = input.source === 'staked' ? amountRao : 0n
     const value = taoAmount + feeWithBuffer(input.exactNetworkFeeWei)
@@ -285,21 +268,24 @@ export function buildSubtensorToEvmPlan(
             subtensor.chainId,
             sender,
             subtensor.contracts.gateway,
-            alphaInterface.encodeFunctionData('bridgeOut', [
-                evm.ccipSelector,
-                subtensor.contracts.wrappedTao,
-                recipient,
-                taoAmount,
-                stakedAlphaRao,
-                input.amountWei,
-            ]),
+            encodeFunctionData({
+                abi: alphaAbi,
+                functionName: 'bridgeOut',
+                args: [
+                    evm.ccipSelector,
+                    subtensor.contracts.wrappedTao,
+                    recipient,
+                    taoAmount,
+                    stakedAlphaRao,
+                    input.amountWei,
+                ],
+            }),
             value,
             input.estimatedBridgeGas === undefined
                 ? undefined
                 : gasLimitWithBuffer(input.estimatedBridgeGas)
         )
     )
-
     return createTransactionPlan({
         action:
             evm.key === 'base'
@@ -309,15 +295,13 @@ export function buildSubtensorToEvmPlan(
         steps,
     })
 }
-
 export function buildSubtensorToBasePlan(
     input: BuildSubtensorToBasePlanRequest
 ): TransactionPlan {
     return buildSubtensorToEvmPlan({ ...input, evmChain: 'base' })
 }
-
 export async function prepareEvmToSubtensor(
-    provider: BrowserProvider,
+    provider: PublicClient,
     input: EvmToSubtensorRequest
 ): Promise<BridgePreparation> {
     const sender = normalizeEvmAddress(input.sender)
@@ -331,36 +315,34 @@ export async function prepareEvmToSubtensor(
         wantLiquid: input.delivery === 'liquid',
         minTaoOut: input.amountWei,
     }
-    const token = new Contract(evm.contracts.wrappedTao, ERC20_ABI, provider)
-    const gateway = new Contract(
-        evm.contracts.gateway,
-        SPOKE_GATEWAY_ABI,
-        provider
-    )
     const [allowanceWei, exactNetworkFeeWei] = await Promise.all([
-        token.getFunction('allowance')(
-            sender,
-            evm.contracts.gateway
-        ) as Promise<bigint>,
-        gateway.getFunction(
-            'quoteBridgeToFinney(address,uint256,(bytes32,address,bool,uint256))'
-        )(evm.contracts.wrappedTao, input.amountWei, exit) as Promise<bigint>,
+        provider.readContract({
+            address: evm.contracts.wrappedTao,
+            abi: erc20Abi,
+            functionName: 'allowance',
+            args: [sender, evm.contracts.gateway],
+        }),
+        provider.readContract({
+            address: evm.contracts.gateway,
+            abi: spokeAbi,
+            functionName: 'quoteBridgeToFinney',
+            args: [evm.contracts.wrappedTao, input.amountWei, exit],
+        }),
     ])
-
     let estimatedBridgeGas: bigint | undefined
     if (allowanceWei >= input.amountWei) {
-        const data = spokeInterface.encodeFunctionData(
-            'bridgeToFinney(address,uint256,(bytes32,address,bool,uint256))',
-            [evm.contracts.wrappedTao, input.amountWei, exit]
-        )
+        const data = encodeFunctionData({
+            abi: spokeAbi,
+            functionName: 'bridgeToFinney',
+            args: [evm.contracts.wrappedTao, input.amountWei, exit],
+        })
         estimatedBridgeGas = await provider.estimateGas({
-            from: sender,
+            account: sender,
             to: evm.contracts.gateway,
             data,
             value: feeWithBuffer(exactNetworkFeeWei),
         })
     }
-
     const plan = buildEvmToSubtensorPlan({
         ...input,
         allowanceWei,
@@ -373,16 +355,14 @@ export async function prepareEvmToSubtensor(
         plan,
     })
 }
-
 export function prepareBaseToSubtensor(
-    provider: BrowserProvider,
+    provider: PublicClient,
     input: BaseToSubtensorRequest
 ): Promise<BridgePreparation> {
     return prepareEvmToSubtensor(provider, { ...input, evmChain: 'base' })
 }
-
 export async function prepareSubtensorToEvm(
-    provider: BrowserProvider,
+    provider: PublicClient,
     input: SubtensorToEvmRequest
 ): Promise<BridgePreparation> {
     const sender = normalizeEvmAddress(input.sender)
@@ -391,18 +371,17 @@ export async function prepareSubtensorToEvm(
     assertWholeRao(input.amountWei)
     const { subtensor } = foreverMoneyDeployment
     const evm = getForeverMoneyEvmDeployment(input.evmChain)
-    const gateway = new Contract(
-        subtensor.contracts.gateway,
-        ALPHA_GATEWAY_ABI,
-        provider
-    )
-    const exactNetworkFeeWei = (await gateway.getFunction('quoteBridgeOut')(
-        evm.ccipSelector,
-        subtensor.contracts.wrappedTao,
-        recipient,
-        input.amountWei
-    )) as bigint
-
+    const exactNetworkFeeWei = await provider.readContract({
+        address: subtensor.contracts.gateway,
+        abi: alphaAbi,
+        functionName: 'quoteBridgeOut',
+        args: [
+            evm.ccipSelector,
+            subtensor.contracts.wrappedTao,
+            recipient,
+            input.amountWei,
+        ],
+    })
     let stakingAllowanceRao: bigint | undefined
     if (input.source === 'staked') {
         if (input.netuid === undefined) {
@@ -412,18 +391,13 @@ export async function prepareSubtensorToEvm(
             )
         }
         assertNonNegativeAmount(input.netuid, 'netuid')
-        const staking = new Contract(
-            subtensor.contracts.stakingPrecompile,
-            STAKING_ABI,
-            provider
-        )
-        stakingAllowanceRao = (await staking.getFunction('allowance')(
-            sender,
-            subtensor.contracts.gateway,
-            input.netuid
-        )) as bigint
+        stakingAllowanceRao = await provider.readContract({
+            address: subtensor.contracts.stakingPrecompile,
+            abi: stakingAbi,
+            functionName: 'allowance',
+            args: [sender, subtensor.contracts.gateway, input.netuid],
+        })
     }
-
     const taoAmount = input.source === 'liquid' ? input.amountWei : 0n
     const stakedAlphaRao =
         input.source === 'staked' ? input.amountWei / EVM_WEI_PER_RAO : 0n
@@ -436,20 +410,23 @@ export async function prepareSubtensorToEvm(
             stakingAllowanceRao >= stakedAlphaRao)
     ) {
         estimatedBridgeGas = await provider.estimateGas({
-            from: sender,
+            account: sender,
             to: subtensor.contracts.gateway,
-            data: alphaInterface.encodeFunctionData('bridgeOut', [
-                evm.ccipSelector,
-                subtensor.contracts.wrappedTao,
-                recipient,
-                taoAmount,
-                stakedAlphaRao,
-                input.amountWei,
-            ]),
+            data: encodeFunctionData({
+                abi: alphaAbi,
+                functionName: 'bridgeOut',
+                args: [
+                    evm.ccipSelector,
+                    subtensor.contracts.wrappedTao,
+                    recipient,
+                    taoAmount,
+                    stakedAlphaRao,
+                    input.amountWei,
+                ],
+            }),
             value,
         })
     }
-
     const plan = buildSubtensorToEvmPlan({
         ...input,
         exactNetworkFeeWei,
@@ -462,9 +439,8 @@ export async function prepareSubtensorToEvm(
         plan,
     })
 }
-
 export function prepareSubtensorToBase(
-    provider: BrowserProvider,
+    provider: PublicClient,
     input: SubtensorToBaseRequest
 ): Promise<BridgePreparation> {
     return prepareSubtensorToEvm(provider, { ...input, evmChain: 'base' })

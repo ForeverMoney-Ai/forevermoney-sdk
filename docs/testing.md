@@ -66,3 +66,7 @@ Clear it from the shell immediately after the run with
 the received amount and any residual approval before declaring the canary
 successful. The script itself verifies source confirmation, resolves the
 canonical CCIP message ID, and polls destination delivery for up to 30 minutes.
+
+The canary uses viem and preserves the dedicated-wallet, amount, balance, and
+explicit-broadcast guards. Base-to-Subtensor canaries request **staked** delivery
+because the 0.001 TAO canary cap is below the 0.01 TAO minimum for liquid delivery.

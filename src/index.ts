@@ -57,6 +57,8 @@ export {
     type HttpTransportOptions,
     type RpcRequest,
     type RpcTransport,
+    type TrackingProvider,
+    type LegacyRpcProvider,
 } from './core/transport.js'
 export * from './core/transactions.js'
 export {

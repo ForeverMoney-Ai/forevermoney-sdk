@@ -1,5 +1,5 @@
 import fc from 'fast-check'
-import { MaxUint256 } from 'ethers'
+import { maxUint256 } from 'viem'
 import { describe, expect, it } from 'vitest'
 import {
     EVM_WEI_PER_RAO,
@@ -25,7 +25,7 @@ describe('TAO amounts', () => {
         expect(() => formatTaoAmount(-EVM_WEI_PER_RAO)).toThrow(
             'cannot be negative'
         )
-        expect(() => formatTaoAmount(MaxUint256 + 1n)).toThrow(
+        expect(() => formatTaoAmount(maxUint256 + 1n)).toThrow(
             'exceeds uint256'
         )
         expect(() => parseTaoAmount(1 as unknown as string)).toThrow(
@@ -57,7 +57,7 @@ describe('TAO amounts', () => {
         )
         expect(gasLimitWithBuffer(101n)).toBe(152n)
         expect(() => gasLimitWithBuffer(0n)).toThrow('greater than zero')
-        expect(() => feeWithBuffer(MaxUint256)).toThrow('exceeds uint256')
-        expect(() => gasLimitWithBuffer(MaxUint256)).toThrow('exceeds uint256')
+        expect(() => feeWithBuffer(maxUint256)).toThrow('exceeds uint256')
+        expect(() => gasLimitWithBuffer(maxUint256)).toThrow('exceeds uint256')
     })
 })

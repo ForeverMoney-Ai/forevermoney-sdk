@@ -1,4 +1,4 @@
-import { keccak256, toUtf8Bytes } from 'ethers'
+import { keccak256, stringToBytes } from 'viem'
 import { FOREVERMONEY_DEPLOYMENT_VERSION } from '../chains/deployment.js'
 
 export type TransactionStepKind = 'approval' | 'transaction'
@@ -59,6 +59,6 @@ export function createTransactionPlan(plan: UnhashedPlan): TransactionPlan {
     }
     return Object.freeze({
         ...versionedPlan,
-        hash: keccak256(toUtf8Bytes(JSON.stringify(versionedPlan))),
+        hash: keccak256(stringToBytes(JSON.stringify(versionedPlan))),
     })
 }

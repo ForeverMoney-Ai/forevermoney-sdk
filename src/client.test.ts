@@ -1,5 +1,12 @@
-import { encodeAddress } from '@polkadot/util-crypto'
-import { Interface } from 'ethers'
+import { AccountId } from '@polkadot-api/substrate-bindings'
+const encodeAddress = (key: Uint8Array, prefix: number) =>
+    AccountId(prefix).dec(key)
+import {
+    decodeFunctionData,
+    encodeFunctionResult,
+    parseAbi,
+    type Hex,
+} from 'viem'
 import { describe, expect, it, vi } from 'vitest'
 import {
     ALPHA_GATEWAY_ABI,
@@ -13,16 +20,14 @@ import {
     type RpcRequest,
     type RpcTransport,
 } from './index.js'
-
-const erc20 = new Interface(ERC20_ABI)
-const spoke = new Interface(SPOKE_GATEWAY_ABI)
-const alpha = new Interface(ALPHA_GATEWAY_ABI)
-const staking = new Interface(STAKING_ABI)
+const erc20 = parseAbi(ERC20_ABI)
+const spoke = parseAbi(SPOKE_GATEWAY_ABI)
+const alpha = parseAbi(ALPHA_GATEWAY_ABI)
+const staking = parseAbi(STAKING_ABI)
 const sender = '0x1111111111111111111111111111111111111111'
 const recipient = '0x2222222222222222222222222222222222222222'
 const destination = encodeAddress(new Uint8Array(32).fill(7), 42)
-const amountWei = 1_000_000_000_000_000_000n
-
+const amountWei = 1000000000000000000n
 function requestTransaction(request: RpcRequest): {
     readonly to: string
     readonly data: string
@@ -43,7 +48,6 @@ function requestTransaction(request: RpcRequest): {
     }
     return { to: transaction.to, data: transaction.data }
 }
-
 function mockTransport(
     chainId: number,
     handler: (request: RpcRequest) => unknown
@@ -57,7 +61,6 @@ function mockTransport(
         }),
     }
 }
-
 describe('ForeverMoney client contract integration', () => {
     it('captures bridge checkpoints from the verified destination transport', async () => {
         const base = mockTransport(8453, () => {
@@ -70,7 +73,6 @@ describe('ForeverMoney client contract integration', () => {
         const client = createForeverMoneyClient({
             transports: { base, subtensor },
         })
-
         await expect(
             client.bridge.getDeliveryCheckpoint('base-to-subtensor')
         ).resolves.toEqual({
@@ -79,7 +81,6 @@ describe('ForeverMoney client contract integration', () => {
             fromBlock: 123,
         })
     })
-
     it('reads bridge source status from the source transport', async () => {
         const base = mockTransport(8453, (request) => {
             if (request.method === 'eth_getTransactionReceipt') return null
@@ -91,7 +92,6 @@ describe('ForeverMoney client contract integration', () => {
         const client = createForeverMoneyClient({
             transports: { base, subtensor },
         })
-
         await expect(
             client.bridge.getSourceStatus({
                 direction: 'base-to-subtensor',
@@ -103,7 +103,6 @@ describe('ForeverMoney client contract integration', () => {
             messageId: null,
         })
     })
-
     it('reads Base allowance and quote before returning an approval-aware plan', async () => {
         const base = mockTransport(8453, (request) => {
             expect(request.method).toBe('eth_call')
@@ -113,22 +112,31 @@ describe('ForeverMoney client contract integration', () => {
                 foreverMoneyDeployment.base.contracts.wrappedTao.toLowerCase()
             ) {
                 expect(
-                    erc20.parseTransaction({ data: transaction.data })?.name
+                    decodeFunctionData({
+                        abi: erc20,
+                        data: transaction.data as Hex,
+                    }).functionName
                 ).toBe('allowance')
-                return erc20.encodeFunctionResult('allowance', [0n])
+                return encodeFunctionResult({
+                    abi: erc20,
+                    functionName: 'allowance',
+                    result: 0n,
+                })
             }
             expect(transaction.to.toLowerCase()).toBe(
                 foreverMoneyDeployment.base.contracts.gateway.toLowerCase()
             )
-            const quote = spoke.parseTransaction({ data: transaction.data })
-            expect(quote?.signature).toBe(
-                'quoteBridgeToFinney(address,uint256,(bytes32,address,bool,uint256))'
-            )
-            expect(quote?.args[2].minTaoOut).toBe(amountWei)
-            return spoke.encodeFunctionResult(
-                'quoteBridgeToFinney(address,uint256,(bytes32,address,bool,uint256))',
-                [100n]
-            )
+            const quote = decodeFunctionData({
+                abi: spoke,
+                data: transaction.data as Hex,
+            })
+            expect(quote?.functionName).toBe('quoteBridgeToFinney')
+            expect(quote?.args[2]!.minTaoOut).toBe(amountWei)
+            return encodeFunctionResult({
+                abi: spoke,
+                functionName: 'quoteBridgeToFinney',
+                result: 100n,
+            })
         })
         const subtensor = mockTransport(964, () => {
             throw new Error('Unexpected Subtensor call.')
@@ -149,7 +157,6 @@ describe('ForeverMoney client contract integration', () => {
             'transaction',
         ])
     })
-
     it('routes Robinhood preparation through its dedicated transport', async () => {
         const base = mockTransport(8453, () => {
             throw new Error('Unexpected Base call.')
@@ -161,15 +168,20 @@ describe('ForeverMoney client contract integration', () => {
                 transaction.to.toLowerCase() ===
                 foreverMoneyDeployment.robinhood.contracts.wrappedTao.toLowerCase()
             ) {
-                return erc20.encodeFunctionResult('allowance', [0n])
+                return encodeFunctionResult({
+                    abi: erc20,
+                    functionName: 'allowance',
+                    result: 0n,
+                })
             }
             expect(transaction.to.toLowerCase()).toBe(
                 foreverMoneyDeployment.robinhood.contracts.gateway.toLowerCase()
             )
-            return spoke.encodeFunctionResult(
-                'quoteBridgeToFinney(address,uint256,(bytes32,address,bool,uint256))',
-                [100n]
-            )
+            return encodeFunctionResult({
+                abi: spoke,
+                functionName: 'quoteBridgeToFinney',
+                result: 100n,
+            })
         })
         const subtensor = mockTransport(964, () => {
             throw new Error('Unexpected Subtensor call.')
@@ -177,7 +189,6 @@ describe('ForeverMoney client contract integration', () => {
         const client = createForeverMoneyClient({
             transports: { base, robinhood, subtensor },
         })
-
         const prepared = await client.bridge.prepareEvmToSubtensor({
             evmChain: 'robinhood',
             sender,
@@ -188,7 +199,6 @@ describe('ForeverMoney client contract integration', () => {
         expect(prepared.plan.action).toBe('bridge.robinhood-to-subtensor')
         expect(prepared.plan.steps[1]!.transaction.chainId).toBe(4663)
     })
-
     it('prepares Subtensor to Robinhood with the canonical selector', async () => {
         const base = mockTransport(8453, () => {
             throw new Error('Unexpected Base call.')
@@ -198,17 +208,23 @@ describe('ForeverMoney client contract integration', () => {
         })
         const subtensor = mockTransport(964, (request) => {
             const transaction = requestTransaction(request)
-            const call = alpha.parseTransaction({ data: transaction.data })
+            const call = decodeFunctionData({
+                abi: alpha,
+                data: transaction.data as Hex,
+            })
             expect(call?.args[0]).toBe(
                 foreverMoneyDeployment.robinhood.ccipSelector
             )
             if (request.method === 'eth_estimateGas') return '0xc8'
-            return alpha.encodeFunctionResult('quoteBridgeOut', [100n])
+            return encodeFunctionResult({
+                abi: alpha,
+                functionName: 'quoteBridgeOut',
+                result: 100n,
+            })
         })
         const client = createForeverMoneyClient({
             transports: { base, robinhood, subtensor },
         })
-
         const prepared = await client.bridge.prepareSubtensorToEvm({
             evmChain: 'robinhood',
             sender,
@@ -219,7 +235,6 @@ describe('ForeverMoney client contract integration', () => {
         expect(prepared.plan.action).toBe('bridge.subtensor-to-robinhood')
         expect(prepared.plan.steps[0]!.transaction.chainId).toBe(964)
     })
-
     it('quotes and simulates a liquid Subtensor to Base bridge', async () => {
         const base = mockTransport(8453, () => {
             throw new Error('Unexpected Base call.')
@@ -229,15 +244,22 @@ describe('ForeverMoney client contract integration', () => {
             expect(transaction.to.toLowerCase()).toBe(
                 foreverMoneyDeployment.subtensor.contracts.gateway.toLowerCase()
             )
-            const call = alpha.parseTransaction({ data: transaction.data })
+            const call = decodeFunctionData({
+                abi: alpha,
+                data: transaction.data as Hex,
+            })
             if (request.method === 'eth_estimateGas') {
-                expect(call?.name).toBe('bridgeOut')
+                expect(call?.functionName).toBe('bridgeOut')
                 expect(call?.args[5]).toBe(amountWei)
                 return '0xc8'
             }
             expect(request.method).toBe('eth_call')
-            expect(call?.name).toBe('quoteBridgeOut')
-            return alpha.encodeFunctionResult('quoteBridgeOut', [100n])
+            expect(call?.functionName).toBe('quoteBridgeOut')
+            return encodeFunctionResult({
+                abi: alpha,
+                functionName: 'quoteBridgeOut',
+                result: 100n,
+            })
         })
         const client = createForeverMoneyClient({
             transports: { base, subtensor },
@@ -252,7 +274,6 @@ describe('ForeverMoney client contract integration', () => {
         expect(prepared.plan.steps[0]!.transaction.gasLimit).toBe('300')
         expect(prepared.transactionValueWei).toBe(amountWei + 102n)
     })
-
     it('reads the staking precompile allowance in RAO for a staked source', async () => {
         const base = mockTransport(8453, () => {
             throw new Error('Unexpected Base call.')
@@ -265,11 +286,22 @@ describe('ForeverMoney client contract integration', () => {
                 foreverMoneyDeployment.subtensor.contracts.stakingPrecompile.toLowerCase()
             ) {
                 expect(
-                    staking.parseTransaction({ data: transaction.data })?.name
+                    decodeFunctionData({
+                        abi: staking,
+                        data: transaction.data as Hex,
+                    }).functionName
                 ).toBe('allowance')
-                return staking.encodeFunctionResult('allowance', [0n])
+                return encodeFunctionResult({
+                    abi: staking,
+                    functionName: 'allowance',
+                    result: 0n,
+                })
             }
-            return alpha.encodeFunctionResult('quoteBridgeOut', [100n])
+            return encodeFunctionResult({
+                abi: alpha,
+                functionName: 'quoteBridgeOut',
+                result: 100n,
+            })
         })
         const client = createForeverMoneyClient({
             transports: { base, subtensor },

@@ -1,4 +1,10 @@
-import { Interface, toBeHex, type AbstractProvider } from 'ethers'
+import { eventLog } from '../test-utils.js'
+import {
+    parseAbi,
+    TransactionReceiptNotFoundError,
+    type PublicClient,
+    type Hex,
+} from 'viem'
 import { describe, expect, it, vi } from 'vitest'
 import {
     ALPHA_GATEWAY_ABI,
@@ -13,18 +19,18 @@ import {
     sourceChainId,
 } from './tracking.js'
 import { foreverMoneyDeployment } from '../chains/deployment.js'
-
-const executionInterface = new Interface(CCIP_EXECUTION_ABI)
-const alphaGatewayInterface = new Interface(ALPHA_GATEWAY_ABI)
-const spokeGatewayInterface = new Interface(SPOKE_GATEWAY_ABI)
+const executionAbi = parseAbi(CCIP_EXECUTION_ABI)
+const alphaGatewayAbi = parseAbi(ALPHA_GATEWAY_ABI)
+const spokeGatewayAbi = parseAbi(SPOKE_GATEWAY_ABI)
 const messageId = `0x${'11'.repeat(32)}`
 const messageHash = `0x${'22'.repeat(32)}`
 const transactionHash = `0x${'33'.repeat(32)}`
-
 function executionLog(state: number) {
-    const event = executionInterface.getEvent('ExecutionStateChanged')
+    const event = executionAbi.find(
+        (item) => item.type === 'event' && item.name === 'ExecutionStateChanged'
+    )!
     if (event === null) throw new Error('ExecutionStateChanged ABI is missing.')
-    const encoded = executionInterface.encodeEventLog(event, [
+    const encoded = eventLog(executionAbi, event.name, [
         1n,
         2n,
         messageId,
@@ -33,15 +39,16 @@ function executionLog(state: number) {
         '0x',
         100n,
     ])
-    return { ...encoded, transactionHash }
+    return { ...encoded, transactionHash, args: { state } }
 }
-
 function claimableLog(
     address = foreverMoneyDeployment.subtensor.contracts.gateway
 ) {
-    const event = alphaGatewayInterface.getEvent('Claimable')
+    const event = alphaGatewayAbi.find(
+        (item) => item.type === 'event' && item.name === 'Claimable'
+    )!
     if (event === null) throw new Error('Claimable ABI is missing.')
-    const encoded = alphaGatewayInterface.encodeEventLog(event, [
+    const encoded = eventLog(alphaGatewayAbi, event.name, [
         foreverMoneyDeployment.subtensor.contracts.wrappedTao,
         '0x1111111111111111111111111111111111111111',
         10n,
@@ -49,11 +56,12 @@ function claimableLog(
     ])
     return { address, ...encoded }
 }
-
 function bridgeSourceLog() {
-    const event = spokeGatewayInterface.getEvent('BridgedToFinney')
+    const event = spokeGatewayAbi.find(
+        (item) => item.type === 'event' && item.name === 'BridgedToFinney'
+    )!
     if (event === null) throw new Error('BridgedToFinney ABI is missing.')
-    const encoded = spokeGatewayInterface.encodeEventLog(event, [
+    const encoded = eventLog(spokeGatewayAbi, event.name, [
         foreverMoneyDeployment.base.contracts.wrappedTao,
         '0x1111111111111111111111111111111111111111',
         `0x${'44'.repeat(32)}`,
@@ -65,7 +73,6 @@ function bridgeSourceLog() {
         ...encoded,
     }
 }
-
 function provider(
     options: {
         chainId?: number
@@ -75,24 +82,28 @@ function provider(
         receiptAvailable?: boolean
         receiptStatus?: number | null
     } = {}
-): AbstractProvider {
+): PublicClient {
     return {
-        getNetwork: vi.fn(async () => ({
-            chainId: BigInt(options.chainId ?? 964),
-        })),
-        getBlockNumber: vi.fn(async () => options.blockNumber ?? 123),
+        getChainId: vi.fn(async () => options.chainId ?? 964),
+        getBlockNumber: vi.fn(async () => BigInt(options.blockNumber ?? 123)),
         getLogs: vi.fn(async () => options.logs ?? []),
-        getTransactionReceipt: vi.fn(async () =>
-            options.receiptAvailable === false
-                ? null
-                : {
-                      logs: options.receiptLogs ?? [],
-                      status: options.receiptStatus,
-                  }
-        ),
-    } as unknown as AbstractProvider
+        getTransactionReceipt: vi.fn(async () => {
+            if (options.receiptAvailable === false)
+                throw new TransactionReceiptNotFoundError({
+                    hash: transactionHash as Hex,
+                })
+            return {
+                logs: options.receiptLogs ?? [],
+                status:
+                    options.receiptStatus === 0
+                        ? 'reverted'
+                        : options.receiptStatus === 1
+                          ? 'success'
+                          : undefined,
+            }
+        }),
+    } as unknown as PublicClient
 }
-
 describe('CCIP delivery lifecycle', () => {
     it('maps canonical Robinhood lane directions to their chain IDs', () => {
         expect(destinationChainId('robinhood-to-subtensor')).toBe(964)
@@ -100,7 +111,6 @@ describe('CCIP delivery lifecycle', () => {
         expect(destinationChainId('subtensor-to-robinhood')).toBe(4663)
         expect(sourceChainId('subtensor-to-robinhood')).toBe(964)
     })
-
     it('resolves pending, failed, and confirmed source transactions', async () => {
         const request = {
             direction: 'base-to-subtensor' as const,
@@ -129,7 +139,6 @@ describe('CCIP delivery lifecycle', () => {
             )
         ).resolves.toMatchObject({ status: 'confirmed', messageId })
     })
-
     it('rejects a confirmed source receipt without the canonical event', async () => {
         await expect(
             getBridgeSourceStatus(
@@ -141,7 +150,6 @@ describe('CCIP delivery lifecycle', () => {
             )
         ).rejects.toMatchObject({ code: 'INVALID_PROVIDER_RESPONSE' })
     })
-
     it('captures a chain-verified destination checkpoint', async () => {
         await expect(
             getCcipDeliveryCheckpoint(provider(), 'base-to-subtensor')
@@ -151,7 +159,6 @@ describe('CCIP delivery lifecycle', () => {
             fromBlock: 123,
         })
     })
-
     it('rejects a provider connected to the wrong destination chain', async () => {
         await expect(
             getCcipDeliveryStatus(provider({ chainId: 8453 }), {
@@ -161,7 +168,6 @@ describe('CCIP delivery lifecycle', () => {
             })
         ).rejects.toMatchObject({ code: 'CHAIN_MISMATCH' })
     })
-
     it('returns waiting until CCIP reports a terminal state', async () => {
         const destinationProvider = provider()
         await expect(
@@ -174,14 +180,14 @@ describe('CCIP delivery lifecycle', () => {
         expect(destinationProvider.getLogs).toHaveBeenCalledWith({
             address:
                 foreverMoneyDeployment.subtensor.contracts.ccipOffRampFromBase,
-            fromBlock: 10,
+            fromBlock: 10n,
             toBlock: 'latest',
-            topics: [
-                executionInterface.getEvent('ExecutionStateChanged')?.topicHash,
-                toBeHex(foreverMoneyDeployment.base.ccipSelector, 32),
-                null,
+            event: executionAbi[0],
+            args: {
+                sourceChainSelector: foreverMoneyDeployment.base.ccipSelector,
                 messageId,
-            ],
+            },
+            strict: true,
         })
         await expect(
             getCcipDeliveryStatus(provider({ logs: [executionLog(1)] }), {
@@ -191,7 +197,6 @@ describe('CCIP delivery lifecycle', () => {
             })
         ).resolves.toBe('waiting')
     })
-
     it('reports CCIP failure and successful Subtensor-to-Base delivery', async () => {
         await expect(
             getCcipDeliveryStatus(provider({ logs: [executionLog(3)] }), {
@@ -219,7 +224,6 @@ describe('CCIP delivery lifecycle', () => {
             })
         )
     })
-
     it('uses the reviewed Robinhood off-ramp for delivery status', async () => {
         const robinhoodProvider = provider({
             chainId: 4663,
@@ -240,7 +244,6 @@ describe('CCIP delivery lifecycle', () => {
             })
         )
     })
-
     it('distinguishes Base-to-Subtensor recovery from successful delivery', async () => {
         await expect(
             getCcipDeliveryStatus(
@@ -273,7 +276,6 @@ describe('CCIP delivery lifecycle', () => {
             )
         ).resolves.toBe('success')
     })
-
     it('does not report success when recovery evidence cannot be read', async () => {
         await expect(
             getCcipDeliveryStatus(
@@ -289,7 +291,6 @@ describe('CCIP delivery lifecycle', () => {
             )
         ).rejects.toMatchObject({ code: 'INVALID_PROVIDER_RESPONSE' })
     })
-
     it('rejects invalid directions, message IDs, and block numbers', async () => {
         const destinationProvider = provider()
         await expect(

@@ -1,4 +1,4 @@
-import { getAddress } from 'ethers'
+import { getAddress } from 'viem'
 
 export const BASE_CHAIN_ID = 8453
 export const ROBINHOOD_CHAIN_ID = 4663

@@ -1,33 +1,62 @@
-import { isHex, u8aToHex } from '@polkadot/util'
 import {
-    decodeAddress,
-    encodeAddress,
-    evmToAddress,
-} from '@polkadot/util-crypto'
-import { ZeroAddress, getAddress, isAddress } from 'ethers'
+    AccountId,
+    Blake2256,
+    getSs58AddressInfo,
+} from '@polkadot-api/substrate-bindings'
+import {
+    bytesToHex,
+    concat,
+    getAddress,
+    hexToBytes,
+    isAddress,
+    stringToBytes,
+    zeroAddress,
+    type Address,
+    type Hex,
+} from 'viem'
 import { ForeverMoneyError } from './errors.js'
 
 const BITTENSOR_SS58_PREFIX = 42
 
-export function normalizeEvmAddress(value: string): string {
-    if (!isAddress(value) || value === ZeroAddress) {
+export function normalizeEvmAddress(value: string): Address {
+    // All-uppercase and all-lowercase are valid unchecksummed forms. Mixed case
+    // must still pass EIP-55 validation, as it did before the viem migration.
+    const candidate =
+        typeof value === 'string' && /^0x[0-9A-F]{40}$/.test(value)
+            ? value.toLowerCase()
+            : value
+    if (!isAddress(candidate) || candidate === zeroAddress) {
         throw new ForeverMoneyError(
             'INVALID_ADDRESS',
             'Expected a non-zero EVM address.'
         )
     }
-    return getAddress(value)
+    return getAddress(candidate)
 }
 
 export function evmToMirrorSS58(evmAddress: string): string {
-    return evmToAddress(normalizeEvmAddress(evmAddress), BITTENSOR_SS58_PREFIX)
+    return AccountId(BITTENSOR_SS58_PREFIX).dec(
+        Blake2256(
+            concat([
+                stringToBytes('evm:'),
+                hexToBytes(normalizeEvmAddress(evmAddress)),
+            ])
+        )
+    )
 }
 
 function decodeBittensorAddress(value: string): Uint8Array {
     try {
-        if (!value || isHex(value)) throw new Error('Raw hex is not SS58.')
-        const publicKey = decodeAddress(value, false, BITTENSOR_SS58_PREFIX)
-        if (publicKey.length !== 32) throw new Error('Invalid key length.')
+        if (typeof value !== 'string' || !value || value.startsWith('0x'))
+            throw new Error('Raw hex is not SS58.')
+        const info = getSs58AddressInfo(value)
+        if (
+            !info.isValid ||
+            info.ss58Format !== BITTENSOR_SS58_PREFIX ||
+            info.publicKey.length !== 32
+        )
+            throw new Error('Invalid Bittensor address.')
+        const publicKey = info.publicKey
         return publicKey
     } catch {
         throw new ForeverMoneyError(
@@ -38,7 +67,7 @@ function decodeBittensorAddress(value: string): Uint8Array {
 }
 
 export function normalizeSS58(value: string): string {
-    return encodeAddress(decodeBittensorAddress(value), BITTENSOR_SS58_PREFIX)
+    return AccountId(BITTENSOR_SS58_PREFIX).dec(decodeBittensorAddress(value))
 }
 
 export function isBittensorSS58(value: string): boolean {
@@ -50,6 +79,6 @@ export function isBittensorSS58(value: string): boolean {
     }
 }
 
-export function ss58ToPublicKey(value: string): string {
-    return u8aToHex(decodeBittensorAddress(value))
+export function ss58ToPublicKey(value: string): Hex {
+    return bytesToHex(decodeBittensorAddress(value))
 }

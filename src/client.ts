@@ -1,4 +1,4 @@
-import type { BrowserProvider } from 'ethers'
+import type { PublicClient } from 'viem'
 import {
     prepareBaseToSubtensor,
     prepareEvmToSubtensor,
@@ -80,21 +80,21 @@ export interface ForeverMoneyClient {
 }
 
 async function assertProviderChain(
-    provider: BrowserProvider,
+    provider: PublicClient,
     expectedChainId: number,
     name: string
 ): Promise<void> {
-    const network = await providerOperation(
+    const chainId = await providerOperation(
         `Reading the ${name} chain ID`,
-        () => provider.getNetwork()
+        () => provider.getChainId()
     )
-    if (network.chainId !== BigInt(expectedChainId)) {
+    if (chainId !== expectedChainId) {
         throw new ForeverMoneyError(
             'CHAIN_MISMATCH',
-            `${name} transport reported chain ID ${network.chainId}; expected ${expectedChainId}.`,
+            `${name} transport reported chain ID ${chainId}; expected ${expectedChainId}.`,
             {
                 expectedChainId,
-                actualChainId: network.chainId.toString(),
+                actualChainId: chainId.toString(),
             }
         )
     }
@@ -141,7 +141,7 @@ export function createForeverMoneyClient(
             verifySubtensorConnection(),
         ])
     }
-    const providerForChain = (chainId: number): BrowserProvider => {
+    const providerForChain = (chainId: number): PublicClient => {
         if (chainId === BASE_CHAIN_ID) return baseProvider
         if (chainId === SUBTENSOR_CHAIN_ID) return subtensorProvider
         if (chainId === ROBINHOOD_CHAIN_ID && robinhoodProvider !== undefined) {

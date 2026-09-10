@@ -1,4 +1,4 @@
-import { MaxUint256, ZeroHash, isHexString } from 'ethers'
+import { maxUint256, zeroHash, isHex, type Hex } from 'viem'
 import { ForeverMoneyError } from './errors.js'
 
 function assertBigInt(
@@ -30,7 +30,7 @@ export function assertPositiveAmount(
             `${label} cannot be negative.`
         )
     }
-    if (amount > MaxUint256) {
+    if (amount > maxUint256) {
         throw new ForeverMoneyError(
             'INVALID_TRANSACTION_PLAN',
             `${label} exceeds uint256.`
@@ -49,7 +49,7 @@ export function assertNonNegativeAmount(
             `${label} cannot be negative.`
         )
     }
-    if (amount > MaxUint256) {
+    if (amount > maxUint256) {
         throw new ForeverMoneyError(
             'INVALID_TRANSACTION_PLAN',
             `${label} exceeds uint256.`
@@ -93,19 +93,19 @@ export function assertRecord(
     }
 }
 
-export function normalizeBytes32(value: string, label: string): string {
-    if (!isHexString(value, 32)) {
+export function normalizeBytes32(value: string, label: string): Hex {
+    if (!isHex(value, { strict: true }) || value.length !== 66) {
         throw new ForeverMoneyError(
             'INVALID_BYTES32',
             `${label} must be a 32-byte hex value.`
         )
     }
-    return value.toLowerCase()
+    return value.toLowerCase() as Hex
 }
 
 export function normalizeOptionalBytes32(
     value: string | undefined,
     label: string
-): string {
-    return value === undefined ? ZeroHash : normalizeBytes32(value, label)
+): Hex {
+    return value === undefined ? zeroHash : normalizeBytes32(value, label)
 }

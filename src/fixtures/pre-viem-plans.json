@@ -1,0 +1,575 @@
+{
+    "mirror": "5DDYKUgyHe2Sx8a9oTZPAXrgFaTiGnYZXrecNdeC9bG7TbtX",
+    "cases": [
+        {
+            "method": "buildEvmToSubtensorPlan",
+            "input": {
+                "evmChain": "base",
+                "sender": "0x1111111111111111111111111111111111111111",
+                "amountWei": {
+                    "$bigint": "1000000000000000000"
+                },
+                "destination": "5DDYKUgyHe2Sx8a9oTZPAXrgFaTiGnYZXrecNdeC9bG7TbtX",
+                "delivery": "liquid",
+                "allowanceWei": {
+                    "$bigint": "0"
+                },
+                "exactNetworkFeeWei": {
+                    "$bigint": "101"
+                },
+                "estimatedBridgeGas": {
+                    "$bigint": "12345"
+                }
+            },
+            "plan": {
+                "version": "1",
+                "deploymentVersion": "1.1.0",
+                "action": "bridge.base-to-subtensor",
+                "summary": "Bridge 1000000000000000000 wei of wrapped TAO from Base to 5DDYKUgyHe2Sx8a9oTZPAXrgFaTiGnYZXrecNdeC9bG7TbtX.",
+                "steps": [
+                    {
+                        "kind": "approval",
+                        "label": "Approve wrapped TAO for the ForeverMoney gateway",
+                        "transaction": {
+                            "chainId": 8453,
+                            "from": "0x1111111111111111111111111111111111111111",
+                            "to": "0xf3081494B87e8D5fb7960f066E931D1D0e6E3d67",
+                            "data": "0x095ea7b30000000000000000000000005ef3d7d19e4b233a1a169da0d5cb02ec6b160a2c0000000000000000000000000000000000000000000000000de0b6b3a7640000",
+                            "value": "0"
+                        }
+                    },
+                    {
+                        "kind": "transaction",
+                        "label": "Bridge wrapped TAO from Base to Subtensor (liquid)",
+                        "transaction": {
+                            "chainId": 8453,
+                            "from": "0x1111111111111111111111111111111111111111",
+                            "to": "0x5EF3d7D19e4b233a1A169DA0d5CB02ec6b160a2C",
+                            "data": "0xe966bbea000000000000000000000000f3081494b87e8d5fb7960f066e931d1d0e6e3d670000000000000000000000000000000000000000000000000de0b6b3a764000032f955c958e51189a4921aed41ef00818f7368dfaec8d9969f091006f8066228000000000000000000000000111111111111111111111111111111111111111100000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000de0b6b3a7640000",
+                            "value": "104",
+                            "gasLimit": "18518"
+                        }
+                    }
+                ],
+                "hash": "0x92d3dd3acc09463c15067398cc3f36987320b7e32ffbadf4a8ea60bb1c447309"
+            }
+        },
+        {
+            "method": "buildEvmToSubtensorPlan",
+            "input": {
+                "evmChain": "base",
+                "sender": "0x1111111111111111111111111111111111111111",
+                "amountWei": {
+                    "$bigint": "1000000000000000000"
+                },
+                "destination": "5DDYKUgyHe2Sx8a9oTZPAXrgFaTiGnYZXrecNdeC9bG7TbtX",
+                "delivery": "liquid",
+                "allowanceWei": {
+                    "$bigint": "1000000000000000000"
+                },
+                "exactNetworkFeeWei": {
+                    "$bigint": "101"
+                },
+                "estimatedBridgeGas": {
+                    "$bigint": "12345"
+                }
+            },
+            "plan": {
+                "version": "1",
+                "deploymentVersion": "1.1.0",
+                "action": "bridge.base-to-subtensor",
+                "summary": "Bridge 1000000000000000000 wei of wrapped TAO from Base to 5DDYKUgyHe2Sx8a9oTZPAXrgFaTiGnYZXrecNdeC9bG7TbtX.",
+                "steps": [
+                    {
+                        "kind": "transaction",
+                        "label": "Bridge wrapped TAO from Base to Subtensor (liquid)",
+                        "transaction": {
+                            "chainId": 8453,
+                            "from": "0x1111111111111111111111111111111111111111",
+                            "to": "0x5EF3d7D19e4b233a1A169DA0d5CB02ec6b160a2C",
+                            "data": "0xe966bbea000000000000000000000000f3081494b87e8d5fb7960f066e931d1d0e6e3d670000000000000000000000000000000000000000000000000de0b6b3a764000032f955c958e51189a4921aed41ef00818f7368dfaec8d9969f091006f8066228000000000000000000000000111111111111111111111111111111111111111100000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000de0b6b3a7640000",
+                            "value": "104",
+                            "gasLimit": "18518"
+                        }
+                    }
+                ],
+                "hash": "0x40ab47b497515367b05dbdfb97eb7ef0c33857314959536ad494f9f11bdc6a81"
+            }
+        },
+        {
+            "method": "buildEvmToSubtensorPlan",
+            "input": {
+                "evmChain": "base",
+                "sender": "0x1111111111111111111111111111111111111111",
+                "amountWei": {
+                    "$bigint": "1000000000000000000"
+                },
+                "destination": "5DDYKUgyHe2Sx8a9oTZPAXrgFaTiGnYZXrecNdeC9bG7TbtX",
+                "delivery": "staked",
+                "allowanceWei": {
+                    "$bigint": "0"
+                },
+                "exactNetworkFeeWei": {
+                    "$bigint": "101"
+                },
+                "estimatedBridgeGas": {
+                    "$bigint": "12345"
+                }
+            },
+            "plan": {
+                "version": "1",
+                "deploymentVersion": "1.1.0",
+                "action": "bridge.base-to-subtensor",
+                "summary": "Bridge 1000000000000000000 wei of wrapped TAO from Base to 5DDYKUgyHe2Sx8a9oTZPAXrgFaTiGnYZXrecNdeC9bG7TbtX.",
+                "steps": [
+                    {
+                        "kind": "approval",
+                        "label": "Approve wrapped TAO for the ForeverMoney gateway",
+                        "transaction": {
+                            "chainId": 8453,
+                            "from": "0x1111111111111111111111111111111111111111",
+                            "to": "0xf3081494B87e8D5fb7960f066E931D1D0e6E3d67",
+                            "data": "0x095ea7b30000000000000000000000005ef3d7d19e4b233a1a169da0d5cb02ec6b160a2c0000000000000000000000000000000000000000000000000de0b6b3a7640000",
+                            "value": "0"
+                        }
+                    },
+                    {
+                        "kind": "transaction",
+                        "label": "Bridge wrapped TAO from Base to Subtensor (staked)",
+                        "transaction": {
+                            "chainId": 8453,
+                            "from": "0x1111111111111111111111111111111111111111",
+                            "to": "0x5EF3d7D19e4b233a1A169DA0d5CB02ec6b160a2C",
+                            "data": "0xe966bbea000000000000000000000000f3081494b87e8d5fb7960f066e931d1d0e6e3d670000000000000000000000000000000000000000000000000de0b6b3a764000032f955c958e51189a4921aed41ef00818f7368dfaec8d9969f091006f8066228000000000000000000000000111111111111111111111111111111111111111100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000de0b6b3a7640000",
+                            "value": "104",
+                            "gasLimit": "18518"
+                        }
+                    }
+                ],
+                "hash": "0x080514c861ba9365a87bd036ee5b1f9a98396d4226a22ba12fb42dd0dad57c5e"
+            }
+        },
+        {
+            "method": "buildEvmToSubtensorPlan",
+            "input": {
+                "evmChain": "base",
+                "sender": "0x1111111111111111111111111111111111111111",
+                "amountWei": {
+                    "$bigint": "1000000000000000000"
+                },
+                "destination": "5DDYKUgyHe2Sx8a9oTZPAXrgFaTiGnYZXrecNdeC9bG7TbtX",
+                "delivery": "staked",
+                "allowanceWei": {
+                    "$bigint": "1000000000000000000"
+                },
+                "exactNetworkFeeWei": {
+                    "$bigint": "101"
+                },
+                "estimatedBridgeGas": {
+                    "$bigint": "12345"
+                }
+            },
+            "plan": {
+                "version": "1",
+                "deploymentVersion": "1.1.0",
+                "action": "bridge.base-to-subtensor",
+                "summary": "Bridge 1000000000000000000 wei of wrapped TAO from Base to 5DDYKUgyHe2Sx8a9oTZPAXrgFaTiGnYZXrecNdeC9bG7TbtX.",
+                "steps": [
+                    {
+                        "kind": "transaction",
+                        "label": "Bridge wrapped TAO from Base to Subtensor (staked)",
+                        "transaction": {
+                            "chainId": 8453,
+                            "from": "0x1111111111111111111111111111111111111111",
+                            "to": "0x5EF3d7D19e4b233a1A169DA0d5CB02ec6b160a2C",
+                            "data": "0xe966bbea000000000000000000000000f3081494b87e8d5fb7960f066e931d1d0e6e3d670000000000000000000000000000000000000000000000000de0b6b3a764000032f955c958e51189a4921aed41ef00818f7368dfaec8d9969f091006f8066228000000000000000000000000111111111111111111111111111111111111111100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000de0b6b3a7640000",
+                            "value": "104",
+                            "gasLimit": "18518"
+                        }
+                    }
+                ],
+                "hash": "0x4e0354e2395409f08be009a5e6250401005ea81d6b198478767a56ca1237cffa"
+            }
+        },
+        {
+            "method": "buildEvmToSubtensorPlan",
+            "input": {
+                "evmChain": "robinhood",
+                "sender": "0x1111111111111111111111111111111111111111",
+                "amountWei": {
+                    "$bigint": "1000000000000000000"
+                },
+                "destination": "5DDYKUgyHe2Sx8a9oTZPAXrgFaTiGnYZXrecNdeC9bG7TbtX",
+                "delivery": "liquid",
+                "allowanceWei": {
+                    "$bigint": "0"
+                },
+                "exactNetworkFeeWei": {
+                    "$bigint": "101"
+                },
+                "estimatedBridgeGas": {
+                    "$bigint": "12345"
+                }
+            },
+            "plan": {
+                "version": "1",
+                "deploymentVersion": "1.1.0",
+                "action": "bridge.robinhood-to-subtensor",
+                "summary": "Bridge 1000000000000000000 wei of wrapped TAO from Robinhood to 5DDYKUgyHe2Sx8a9oTZPAXrgFaTiGnYZXrecNdeC9bG7TbtX.",
+                "steps": [
+                    {
+                        "kind": "approval",
+                        "label": "Approve wrapped TAO for the ForeverMoney gateway",
+                        "transaction": {
+                            "chainId": 4663,
+                            "from": "0x1111111111111111111111111111111111111111",
+                            "to": "0xf3081494B87e8D5fb7960f066E931D1D0e6E3d67",
+                            "data": "0x095ea7b300000000000000000000000053dcc4fe04193e489be537f722f65317db1e65d80000000000000000000000000000000000000000000000000de0b6b3a7640000",
+                            "value": "0"
+                        }
+                    },
+                    {
+                        "kind": "transaction",
+                        "label": "Bridge wrapped TAO from Robinhood to Subtensor (liquid)",
+                        "transaction": {
+                            "chainId": 4663,
+                            "from": "0x1111111111111111111111111111111111111111",
+                            "to": "0x53Dcc4FE04193e489BE537F722F65317DB1E65d8",
+                            "data": "0xe966bbea000000000000000000000000f3081494b87e8d5fb7960f066e931d1d0e6e3d670000000000000000000000000000000000000000000000000de0b6b3a764000032f955c958e51189a4921aed41ef00818f7368dfaec8d9969f091006f8066228000000000000000000000000111111111111111111111111111111111111111100000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000de0b6b3a7640000",
+                            "value": "104",
+                            "gasLimit": "18518"
+                        }
+                    }
+                ],
+                "hash": "0x7dbc5e5207b27b7214969dc82656f2e6536c965a801cc09f90694b7b7fac1dc5"
+            }
+        },
+        {
+            "method": "buildEvmToSubtensorPlan",
+            "input": {
+                "evmChain": "robinhood",
+                "sender": "0x1111111111111111111111111111111111111111",
+                "amountWei": {
+                    "$bigint": "1000000000000000000"
+                },
+                "destination": "5DDYKUgyHe2Sx8a9oTZPAXrgFaTiGnYZXrecNdeC9bG7TbtX",
+                "delivery": "liquid",
+                "allowanceWei": {
+                    "$bigint": "1000000000000000000"
+                },
+                "exactNetworkFeeWei": {
+                    "$bigint": "101"
+                },
+                "estimatedBridgeGas": {
+                    "$bigint": "12345"
+                }
+            },
+            "plan": {
+                "version": "1",
+                "deploymentVersion": "1.1.0",
+                "action": "bridge.robinhood-to-subtensor",
+                "summary": "Bridge 1000000000000000000 wei of wrapped TAO from Robinhood to 5DDYKUgyHe2Sx8a9oTZPAXrgFaTiGnYZXrecNdeC9bG7TbtX.",
+                "steps": [
+                    {
+                        "kind": "transaction",
+                        "label": "Bridge wrapped TAO from Robinhood to Subtensor (liquid)",
+                        "transaction": {
+                            "chainId": 4663,
+                            "from": "0x1111111111111111111111111111111111111111",
+                            "to": "0x53Dcc4FE04193e489BE537F722F65317DB1E65d8",
+                            "data": "0xe966bbea000000000000000000000000f3081494b87e8d5fb7960f066e931d1d0e6e3d670000000000000000000000000000000000000000000000000de0b6b3a764000032f955c958e51189a4921aed41ef00818f7368dfaec8d9969f091006f8066228000000000000000000000000111111111111111111111111111111111111111100000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000de0b6b3a7640000",
+                            "value": "104",
+                            "gasLimit": "18518"
+                        }
+                    }
+                ],
+                "hash": "0xd4dc7e650e79294f1f42df5e52144cb2cd16058cc6f04393262f65ca0bb73667"
+            }
+        },
+        {
+            "method": "buildEvmToSubtensorPlan",
+            "input": {
+                "evmChain": "robinhood",
+                "sender": "0x1111111111111111111111111111111111111111",
+                "amountWei": {
+                    "$bigint": "1000000000000000000"
+                },
+                "destination": "5DDYKUgyHe2Sx8a9oTZPAXrgFaTiGnYZXrecNdeC9bG7TbtX",
+                "delivery": "staked",
+                "allowanceWei": {
+                    "$bigint": "0"
+                },
+                "exactNetworkFeeWei": {
+                    "$bigint": "101"
+                },
+                "estimatedBridgeGas": {
+                    "$bigint": "12345"
+                }
+            },
+            "plan": {
+                "version": "1",
+                "deploymentVersion": "1.1.0",
+                "action": "bridge.robinhood-to-subtensor",
+                "summary": "Bridge 1000000000000000000 wei of wrapped TAO from Robinhood to 5DDYKUgyHe2Sx8a9oTZPAXrgFaTiGnYZXrecNdeC9bG7TbtX.",
+                "steps": [
+                    {
+                        "kind": "approval",
+                        "label": "Approve wrapped TAO for the ForeverMoney gateway",
+                        "transaction": {
+                            "chainId": 4663,
+                            "from": "0x1111111111111111111111111111111111111111",
+                            "to": "0xf3081494B87e8D5fb7960f066E931D1D0e6E3d67",
+                            "data": "0x095ea7b300000000000000000000000053dcc4fe04193e489be537f722f65317db1e65d80000000000000000000000000000000000000000000000000de0b6b3a7640000",
+                            "value": "0"
+                        }
+                    },
+                    {
+                        "kind": "transaction",
+                        "label": "Bridge wrapped TAO from Robinhood to Subtensor (staked)",
+                        "transaction": {
+                            "chainId": 4663,
+                            "from": "0x1111111111111111111111111111111111111111",
+                            "to": "0x53Dcc4FE04193e489BE537F722F65317DB1E65d8",
+                            "data": "0xe966bbea000000000000000000000000f3081494b87e8d5fb7960f066e931d1d0e6e3d670000000000000000000000000000000000000000000000000de0b6b3a764000032f955c958e51189a4921aed41ef00818f7368dfaec8d9969f091006f8066228000000000000000000000000111111111111111111111111111111111111111100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000de0b6b3a7640000",
+                            "value": "104",
+                            "gasLimit": "18518"
+                        }
+                    }
+                ],
+                "hash": "0x67c39b679dbd6265c226bef9f2a155dbaf54de0431c4b0079331c4ae16bf6f0e"
+            }
+        },
+        {
+            "method": "buildEvmToSubtensorPlan",
+            "input": {
+                "evmChain": "robinhood",
+                "sender": "0x1111111111111111111111111111111111111111",
+                "amountWei": {
+                    "$bigint": "1000000000000000000"
+                },
+                "destination": "5DDYKUgyHe2Sx8a9oTZPAXrgFaTiGnYZXrecNdeC9bG7TbtX",
+                "delivery": "staked",
+                "allowanceWei": {
+                    "$bigint": "1000000000000000000"
+                },
+                "exactNetworkFeeWei": {
+                    "$bigint": "101"
+                },
+                "estimatedBridgeGas": {
+                    "$bigint": "12345"
+                }
+            },
+            "plan": {
+                "version": "1",
+                "deploymentVersion": "1.1.0",
+                "action": "bridge.robinhood-to-subtensor",
+                "summary": "Bridge 1000000000000000000 wei of wrapped TAO from Robinhood to 5DDYKUgyHe2Sx8a9oTZPAXrgFaTiGnYZXrecNdeC9bG7TbtX.",
+                "steps": [
+                    {
+                        "kind": "transaction",
+                        "label": "Bridge wrapped TAO from Robinhood to Subtensor (staked)",
+                        "transaction": {
+                            "chainId": 4663,
+                            "from": "0x1111111111111111111111111111111111111111",
+                            "to": "0x53Dcc4FE04193e489BE537F722F65317DB1E65d8",
+                            "data": "0xe966bbea000000000000000000000000f3081494b87e8d5fb7960f066e931d1d0e6e3d670000000000000000000000000000000000000000000000000de0b6b3a764000032f955c958e51189a4921aed41ef00818f7368dfaec8d9969f091006f8066228000000000000000000000000111111111111111111111111111111111111111100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000de0b6b3a7640000",
+                            "value": "104",
+                            "gasLimit": "18518"
+                        }
+                    }
+                ],
+                "hash": "0xa2f013bbf6f35dadb687cbad0e7f99ccae83cdaa200a4ac52aa40a504108594a"
+            }
+        },
+        {
+            "method": "buildSubtensorToEvmPlan",
+            "input": {
+                "evmChain": "base",
+                "sender": "0x1111111111111111111111111111111111111111",
+                "recipient": "0x2222222222222222222222222222222222222222",
+                "amountWei": {
+                    "$bigint": "1000000000000000000"
+                },
+                "source": "liquid",
+                "exactNetworkFeeWei": {
+                    "$bigint": "101"
+                },
+                "estimatedBridgeGas": {
+                    "$bigint": "12345"
+                }
+            },
+            "plan": {
+                "version": "1",
+                "deploymentVersion": "1.1.0",
+                "action": "bridge.subtensor-to-base",
+                "summary": "Bridge 1000000000000000000 wei of liquid TAO from Subtensor to 0x2222222222222222222222222222222222222222 on Base.",
+                "steps": [
+                    {
+                        "kind": "transaction",
+                        "label": "Bridge liquid TAO from Subtensor to Base",
+                        "transaction": {
+                            "chainId": 964,
+                            "from": "0x1111111111111111111111111111111111111111",
+                            "to": "0x998f20Fea90bF7792774dECc7f994716442B1705",
+                            "data": "0x46101418000000000000000000000000000000000000000000000000dda641cfe44aff82000000000000000000000000c5b6c1632d34901239396f5e1bde54b34290025600000000000000000000000022222222222222222222222222222222222222220000000000000000000000000000000000000000000000000de0b6b3a764000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000de0b6b3a7640000",
+                            "value": "1000000000000000104",
+                            "gasLimit": "18518"
+                        }
+                    }
+                ],
+                "hash": "0x59258f2d17753b48f7426b79700eb77f7b6d5a22da67200e0aa2a9f12104ff7c"
+            }
+        },
+        {
+            "method": "buildSubtensorToEvmPlan",
+            "input": {
+                "evmChain": "base",
+                "sender": "0x1111111111111111111111111111111111111111",
+                "recipient": "0x2222222222222222222222222222222222222222",
+                "amountWei": {
+                    "$bigint": "1000000000000000000"
+                },
+                "source": "staked",
+                "exactNetworkFeeWei": {
+                    "$bigint": "101"
+                },
+                "estimatedBridgeGas": {
+                    "$bigint": "12345"
+                },
+                "netuid": {
+                    "$bigint": "7"
+                },
+                "stakingAllowanceRao": {
+                    "$bigint": "0"
+                }
+            },
+            "plan": {
+                "version": "1",
+                "deploymentVersion": "1.1.0",
+                "action": "bridge.subtensor-to-base",
+                "summary": "Bridge 1000000000000000000 wei of staked TAO from Subtensor to 0x2222222222222222222222222222222222222222 on Base.",
+                "steps": [
+                    {
+                        "kind": "approval",
+                        "label": "Approve staked TAO for the ForeverMoney gateway",
+                        "transaction": {
+                            "chainId": 964,
+                            "from": "0x1111111111111111111111111111111111111111",
+                            "to": "0x0000000000000000000000000000000000000805",
+                            "data": "0x426a8493000000000000000000000000998f20fea90bf7792774decc7f994716442b17050000000000000000000000000000000000000000000000000000000000000007000000000000000000000000000000000000000000000000000000003b9aca00",
+                            "value": "0"
+                        }
+                    },
+                    {
+                        "kind": "transaction",
+                        "label": "Bridge staked TAO from Subtensor to Base",
+                        "transaction": {
+                            "chainId": 964,
+                            "from": "0x1111111111111111111111111111111111111111",
+                            "to": "0x998f20Fea90bF7792774dECc7f994716442B1705",
+                            "data": "0x46101418000000000000000000000000000000000000000000000000dda641cfe44aff82000000000000000000000000c5b6c1632d34901239396f5e1bde54b34290025600000000000000000000000022222222222222222222222222222222222222220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003b9aca000000000000000000000000000000000000000000000000000de0b6b3a7640000",
+                            "value": "104",
+                            "gasLimit": "18518"
+                        }
+                    }
+                ],
+                "hash": "0x450ae20fbb488b468704679ac45f8bcd1facc6a728f41138220f1958d969e215"
+            }
+        },
+        {
+            "method": "buildSubtensorToEvmPlan",
+            "input": {
+                "evmChain": "robinhood",
+                "sender": "0x1111111111111111111111111111111111111111",
+                "recipient": "0x2222222222222222222222222222222222222222",
+                "amountWei": {
+                    "$bigint": "1000000000000000000"
+                },
+                "source": "liquid",
+                "exactNetworkFeeWei": {
+                    "$bigint": "101"
+                },
+                "estimatedBridgeGas": {
+                    "$bigint": "12345"
+                }
+            },
+            "plan": {
+                "version": "1",
+                "deploymentVersion": "1.1.0",
+                "action": "bridge.subtensor-to-robinhood",
+                "summary": "Bridge 1000000000000000000 wei of liquid TAO from Subtensor to 0x2222222222222222222222222222222222222222 on Robinhood.",
+                "steps": [
+                    {
+                        "kind": "transaction",
+                        "label": "Bridge liquid TAO from Subtensor to Robinhood",
+                        "transaction": {
+                            "chainId": 964,
+                            "from": "0x1111111111111111111111111111111111111111",
+                            "to": "0x998f20Fea90bF7792774dECc7f994716442B1705",
+                            "data": "0x4610141800000000000000000000000000000000000000000000000055c67227e8c0b329000000000000000000000000c5b6c1632d34901239396f5e1bde54b34290025600000000000000000000000022222222222222222222222222222222222222220000000000000000000000000000000000000000000000000de0b6b3a764000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000de0b6b3a7640000",
+                            "value": "1000000000000000104",
+                            "gasLimit": "18518"
+                        }
+                    }
+                ],
+                "hash": "0xb42909f1b921cd94b64431e07c68a638f3777a53740f2fef8b7adb53fdb3cbdf"
+            }
+        },
+        {
+            "method": "buildSubtensorToEvmPlan",
+            "input": {
+                "evmChain": "robinhood",
+                "sender": "0x1111111111111111111111111111111111111111",
+                "recipient": "0x2222222222222222222222222222222222222222",
+                "amountWei": {
+                    "$bigint": "1000000000000000000"
+                },
+                "source": "staked",
+                "exactNetworkFeeWei": {
+                    "$bigint": "101"
+                },
+                "estimatedBridgeGas": {
+                    "$bigint": "12345"
+                },
+                "netuid": {
+                    "$bigint": "7"
+                },
+                "stakingAllowanceRao": {
+                    "$bigint": "0"
+                }
+            },
+            "plan": {
+                "version": "1",
+                "deploymentVersion": "1.1.0",
+                "action": "bridge.subtensor-to-robinhood",
+                "summary": "Bridge 1000000000000000000 wei of staked TAO from Subtensor to 0x2222222222222222222222222222222222222222 on Robinhood.",
+                "steps": [
+                    {
+                        "kind": "approval",
+                        "label": "Approve staked TAO for the ForeverMoney gateway",
+                        "transaction": {
+                            "chainId": 964,
+                            "from": "0x1111111111111111111111111111111111111111",
+                            "to": "0x0000000000000000000000000000000000000805",
+                            "data": "0x426a8493000000000000000000000000998f20fea90bf7792774decc7f994716442b17050000000000000000000000000000000000000000000000000000000000000007000000000000000000000000000000000000000000000000000000003b9aca00",
+                            "value": "0"
+                        }
+                    },
+                    {
+                        "kind": "transaction",
+                        "label": "Bridge staked TAO from Subtensor to Robinhood",
+                        "transaction": {
+                            "chainId": 964,
+                            "from": "0x1111111111111111111111111111111111111111",
+                            "to": "0x998f20Fea90bF7792774dECc7f994716442B1705",
+                            "data": "0x4610141800000000000000000000000000000000000000000000000055c67227e8c0b329000000000000000000000000c5b6c1632d34901239396f5e1bde54b34290025600000000000000000000000022222222222222222222222222222222222222220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003b9aca000000000000000000000000000000000000000000000000000de0b6b3a7640000",
+                            "value": "104",
+                            "gasLimit": "18518"
+                        }
+                    }
+                ],
+                "hash": "0x15cc3ddb91c2187b815659578025245a33cd64a0ae9b41c6d9b505816b22cbcb"
+            }
+        }
+    ]
+}

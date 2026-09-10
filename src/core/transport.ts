@@ -1,4 +1,4 @@
-import { BrowserProvider, type Eip1193Provider } from 'ethers'
+import { createPublicClient, custom, type PublicClient } from 'viem'
 import { ForeverMoneyError } from './errors.js'
 
 export interface RpcRequest {
@@ -157,14 +157,54 @@ export function http(
     })
 }
 
-export function providerFromTransport(
-    transport: RpcTransport
-): BrowserProvider {
+export function providerFromTransport(transport: RpcTransport): PublicClient {
     if (!transport || typeof transport.request !== 'function') {
         throw new ForeverMoneyError(
             'MISSING_TRANSPORT',
             'An EIP-1193-compatible RPC transport is required.'
         )
     }
-    return new BrowserProvider(transport as Eip1193Provider)
+    return createPublicClient({
+        transport: custom(transport, { retryCount: 0 }),
+        cacheTime: 0,
+        batch: { multicall: false },
+    })
+}
+
+/** Minimal structural interface implemented by ethers JSON-RPC providers. */
+export interface LegacyRpcProvider {
+    send(method: string, params: unknown[]): Promise<unknown>
+}
+
+export type TrackingProvider = PublicClient | LegacyRpcProvider
+
+/** Adapt legacy providers without importing ethers or changing their RPC endpoint. */
+export function trackingClient(provider: TrackingProvider): PublicClient {
+    if (
+        provider &&
+        'getChainId' in provider &&
+        typeof provider.getChainId === 'function'
+    )
+        return provider
+    if (provider && 'send' in provider && typeof provider.send === 'function') {
+        return providerFromTransport({
+            request: ({ method, params }) => {
+                if (params !== undefined && !Array.isArray(params))
+                    throw new ForeverMoneyError(
+                        'RPC_ERROR',
+                        'Tracking RPC params must be an array.'
+                    )
+                return provider.send(
+                    method,
+                    params === undefined
+                        ? []
+                        : [...(params as readonly unknown[])]
+                )
+            },
+        })
+    }
+    throw new ForeverMoneyError(
+        'MISSING_TRANSPORT',
+        'A viem public client or JSON-RPC provider is required.'
+    )
 }

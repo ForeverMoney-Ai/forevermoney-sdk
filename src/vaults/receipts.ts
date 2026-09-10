@@ -1,10 +1,10 @@
-import { Interface } from 'ethers'
+import { decodeEventLog, parseAbi, type Hex } from 'viem'
 import { VAULT_FACTORY_ABI } from '../abis/index.js'
 import { foreverMoneyDeployment } from '../chains/deployment.js'
 import { normalizeEvmAddress } from '../core/addresses.js'
 import { isLogFrom, type TransactionReceiptLike } from '../core/receipts.js'
 
-const vaultFactoryInterface = new Interface(VAULT_FACTORY_ABI)
+const vaultFactoryAbi = parseAbi(VAULT_FACTORY_ABI)
 
 export function vaultManagerFromCreationReceipt(
     receipt: TransactionReceiptLike
@@ -16,11 +16,12 @@ export function vaultManagerFromCreationReceipt(
             continue
         }
         try {
-            const parsed = vaultFactoryInterface.parseLog({
-                data: log.data,
-                topics: [...log.topics],
+            const parsed = decodeEventLog({
+                abi: vaultFactoryAbi,
+                data: log.data as Hex,
+                topics: [...log.topics] as [Hex, ...Hex[]],
             })
-            if (parsed?.name === 'SnLiquidityManagerCreated') {
+            if (parsed.eventName === 'SnLiquidityManagerCreated') {
                 return normalizeEvmAddress(String(parsed.args.manager))
             }
         } catch {

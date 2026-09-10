@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.2.0 — 2026-09-10
+
+- Replaced ethers with viem 2.56.3 for RPC clients, ABI encoding, gas estimation,
+  event decoding, and transaction tracking.
+- Replaced `@polkadot/util` and `@polkadot/util-crypto` with PAPI's
+  `@polkadot-api/substrate-bindings` 0.21.1 for SS58 validation and mirror addresses.
+- Added `toViemTransaction()` and a typed example that reuses existing viem clients.
+  Retained the dependency-free `toEthersTransaction()` compatibility adapter.
+- Lower-level tracking functions accept viem public clients and retain support
+  for ethers-style JSON-RPC providers through a dependency-free adapter. The
+  high-level transport interface, human-readable ABIs, and plan format are unchanged.
+- Enforced the plan's canonical chain in `toViemTransaction()` and rejected
+  unsupported chain IDs before signing.
+- Preserved uppercase EVM address normalization and mixed-case checksum validation.
+- Added regression tests for wrong-chain signing, legacy provider tracking, and
+  address normalization.
+- Added original-implementation plan and address regression fixtures; migrated
+  offline tests, fork tests, and the guarded live canary to the new libraries.
+- Fixed the Base canary to request staked delivery: its 0.001 TAO maximum is below
+  the 0.01 TAO liquid-delivery minimum. Broadcast guards and funding caps remain.
+
 ## 0.1.0
 
 - Added canonical Base and Subtensor production deployment metadata.

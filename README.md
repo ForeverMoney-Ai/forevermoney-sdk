@@ -19,6 +19,12 @@ npm install @forevermoney/sdk
 
 Node.js 22 or newer is required. Both ESM and CommonJS builds are published.
 
+The SDK uses viem for EVM reads, ABI encoding, and receipt decoding, and
+PAPI's `@polkadot-api/substrate-bindings` for SS58 and EVM mirror addresses.
+It does not require ethers or the legacy `@polkadot/*` packages. The full PAPI
+RPC client is unnecessary because the bridge executes on Subtensor EVM;
+this SDK does not sign native Substrate extrinsics.
+
 ## Create a client
 
 ```ts
@@ -54,8 +60,10 @@ const foreverMoney = createForeverMoneyClient({
 })
 ```
 
-See [`examples/talisman.ts`](./examples/talisman.ts) for account and transaction
-handling.
+Existing viem public clients can supply their `.transport` directly. See
+[`examples/viem.ts`](./examples/viem.ts) for transport reuse and execution with a
+viem wallet client, or [`examples/talisman.ts`](./examples/talisman.ts) for
+raw EIP-1193 account and transaction handling.
 
 ## Prepare a bridge
 
@@ -163,9 +171,23 @@ for (const step of prepared.plan.steps) {
 }
 ```
 
-Ethers consumers can pass `toEthersTransaction(step.transaction)` directly to
-`Signer.sendTransaction()`. Both adapters validate the plan's decimal
-quantities before conversion.
+Viem consumers can pass `toViemTransaction(step.transaction)` to
+`walletClient.sendTransaction()`. The adapter supplies the canonical `chain`
+for the plan, so viem rejects a wallet connected to another network. Do not
+override that chain or disable viem's chain assertion. The adapter maps
+`from` to `account`, `gasLimit` to `gas`, and decimal quantities to `bigint`.
+Confirm the signing account and chain before every signature. Local-account
+signers must pass their account object explicitly, after checking that its
+address matches the plan's sender.
+
+`toEthersTransaction()` remains as a dependency-free compatibility adapter for
+existing consumers. All adapters validate decimal quantities before conversion.
+The exported lower-level tracking functions accept either a viem `PublicClient`
+or an existing ethers-style provider with `send(method, params)`. Legacy
+providers are adapted through their own transport without an ethers dependency.
+The `createForeverMoneyClient()` transport interface is unchanged. Exported
+`foreverMoneyAbis` remain human-readable; use viem's `parseAbi()` when calling
+contracts directly.
 
 If a plan contains an approval, its later transaction intentionally has no gas
 limit: that transaction cannot be simulated against pre-approval state. The
