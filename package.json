@@ -5,11 +5,11 @@
     "license": "MIT",
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/SN98-ForeverMoney/forevermoney-sdk.git"
+        "url": "git+https://github.com/ForeverMoney-Ai/forevermoney-sdk.git"
     },
-    "homepage": "https://github.com/SN98-ForeverMoney/forevermoney-sdk#readme",
+    "homepage": "https://github.com/ForeverMoney-Ai/forevermoney-sdk#readme",
     "bugs": {
-        "url": "https://github.com/SN98-ForeverMoney/forevermoney-sdk/issues"
+        "url": "https://github.com/ForeverMoney-Ai/forevermoney-sdk/issues"
     },
     "keywords": [
         "bittensor",

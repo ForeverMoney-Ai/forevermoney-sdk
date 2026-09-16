@@ -4,6 +4,7 @@ import {
     foreverMoneyAbis,
     foreverMoneyDeployment,
     http,
+    MIN_LIQUID_SUBTENSOR_TO_EVM_WEI,
     parseTaoAmount,
     toViemTransaction,
 } from '@forevermoney/sdk'
@@ -38,10 +39,18 @@ const subtensorRpcUrl = required('SUBTENSOR_RPC_URL')
 if (source !== 'base' && source !== 'subtensor') {
     throw new Error('FOREVERMONEY_CANARY_SOURCE must be base or subtensor.')
 }
-const maximumAmountWei = parseTaoAmount('0.001')
+const maximumAmountWei =
+    source === 'subtensor'
+        ? MIN_LIQUID_SUBTENSOR_TO_EVM_WEI
+        : parseTaoAmount('0.001')
 const maximumWalletBalanceWei = parseTaoAmount('0.05')
 if (amountWei > maximumAmountWei) {
-    throw new Error('The live canary amount cannot exceed 0.001 TAO.')
+    throw new Error(
+        `The live canary amount cannot exceed ${source === 'subtensor' ? '0.002' : '0.001'} TAO for ${source}.`
+    )
+}
+if (source === 'subtensor' && amountWei < MIN_LIQUID_SUBTENSOR_TO_EVM_WEI) {
+    throw new Error('The liquid Subtensor canary requires 0.002 TAO.')
 }
 
 const client = createForeverMoneyClient({

@@ -39,8 +39,9 @@ amount required for one minimum-size transfer and fees. Never use a founder,
 treasury, deployer, keeper, or user wallet.
 
 The canary script is intentionally dry-run unless the exact broadcast phrase is
-present. It refuses CI, bridge amounts above `0.001 TAO`, or source wallets with
-more than `0.05` native units.
+present. It refuses CI, bridge amounts above `0.001 TAO` from Base or `0.002 TAO`
+from Subtensor, or source wallets with more than `0.05` native units. A liquid
+Subtensor canary must use exactly `0.002 TAO` to meet the staking minimum.
 
 Read the key without putting it in shell history, then run the dry run:
 

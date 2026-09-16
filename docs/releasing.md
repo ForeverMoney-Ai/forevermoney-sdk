@@ -9,7 +9,7 @@ the packed npm artifact have both been verified.
 2. Create the `@forevermoney` npm organization and grant the maintainers release
    access.
 3. On npm, configure a GitHub Actions trusted publisher for
-   `SN98-ForeverMoney/forevermoney-sdk`, workflow `publish.yml`, environment
+   `ForeverMoney-Ai/forevermoney-sdk`, workflow `publish.yml`, environment
    `npm`.
 4. In GitHub, create the `npm` environment and restrict deployment to protected
    tags matching `v*`.
