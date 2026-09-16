@@ -6,10 +6,10 @@ vault contracts.
 The SDK owns the canonical production deployment: chain IDs, CCIP selectors,
 contract addresses, ABIs, and protocol-specific amount conversion. An
 integrator supplies only RPC transports and user input. The SDK never accepts a
-private key, signs a transaction, or broadcasts a transaction. Bridge principal
-is transferred 1:1 and the network fee is charged separately, so the SDK fixes
-the contract's minimum destination output to the bridged principal instead of
-exposing configurable slippage.
+private key, signs a transaction, or broadcasts a transaction. Network fees are
+charged separately. Subtensor-to-EVM requests accept an explicit minimum output
+to account for native staking rounding; exact output remains the default.
+SDK 0.5.2 also provides opt-in stake rounding preparation (see below).
 
 Bridge plans use the current gateways in `contracts.gateway`. Retired gateways
 remain under `contracts.legacyGateways` only so receipts and deliveries of
