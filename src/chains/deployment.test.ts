@@ -6,6 +6,7 @@ import {
     ROBINHOOD_CHAIN_ID,
     SUBTENSOR_CCIP_SELECTOR,
     SUBTENSOR_CHAIN_ID,
+    SN80_NETUID,
     foreverMoneyDeployment,
 } from '../index.js'
 
@@ -55,6 +56,13 @@ describe('canonical production deployment', () => {
             foreverMoneyDeployment.subtensor.contracts.ccipOffRampFromBase
         ).toBe('0x51a6150400ed9F0Ae240F5D1b15E3b45Fc4339C7')
         expect(foreverMoneyDeployment.base.deploymentBlock).toBe(50_098_800)
+        expect(SN80_NETUID).toBe(80n)
+        expect(foreverMoneyDeployment.base.contracts.wrappedSn80).toBe(
+            '0x6F63d869011f95274498023b4ABFC00b30c34378'
+        )
+        expect(foreverMoneyDeployment.subtensor.contracts.wrappedSn80).toBe(
+            '0xfD628dE75EF96f0A5C59659159C6cA81E0DC2222'
+        )
         expect(foreverMoneyDeployment.robinhood.contracts.legacyGateway).toBe(
             '0x53Dcc4FE04193e489BE537F722F65317DB1E65d8'
         )

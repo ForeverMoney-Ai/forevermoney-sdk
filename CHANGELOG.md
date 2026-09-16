@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.4.0 — 2026-09-16
+
+- Added `asset: 'sn80'` to the bridge builders and preparation methods for Base
+  SN80 ↔ Finney subnet-80 stake. Existing calls continue to default to TAO.
+- Added the verified Base and Finney SN80 token addresses and `SN80_NETUID`.
+- SN80 staking approvals use netuid 80 and alpha RAO; ERC-20 approvals use the
+  Base SN80 token. The partner fee remains 0% and the full principal crosses.
+- Rejects unsupported SN80 liquid TAO conversion, other subnets, and other
+  EVM lanes before requesting a quote.
+- Added an optional `partnerFee: { recipient, bps }` to every bridge builder and
+  `prepare*` method. The fee is charged on top of the bridged amount via the V5
+  `*WithFee` entrypoints and paid to the recipient on the source chain; the full
+  amount still crosses. `prepare*` enforces the gateway's `maxIntegratorFeeBps`.
+  Added `partnerFeeWei` to `BridgePreparation`, `MAX_PARTNER_FEE_BPS`,
+  `partnerFeeCut`, `partnerFeeTaoTopUp`, and the `INVALID_PARTNER_FEE` error
+  code. Omitting the fee keeps the zero-fee calls and byte-identical plans.
+- SN80 plans keep `minTaoOut` equal to the bridged amount, like TAO.
+- Updated deployment metadata version to 1.2.0.
+
 ## 0.3.0 — 2026-09-16
 
 - Moved bridging to the V5 gateways. `contracts.gateway` is now

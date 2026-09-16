@@ -37,7 +37,7 @@ const fixtures = JSON.parse(JSON.stringify(baseline), (_, value: unknown) => {
 
 // The saved plans target the legacy gateways. Swap each one for its V5 replacement
 // (checksummed in `to`, lowercase inside calldata) and ignore the plan hash, which
-// covers the addresses. Everything else must be unchanged.
+// covers the addresses and deployment version. Everything else must be unchanged.
 const chains = ['base', 'robinhood', 'subtensor'] as const
 function withV5Gateways(value: unknown): unknown {
     let text = JSON.stringify(value)
@@ -51,7 +51,10 @@ function withV5Gateways(value: unknown): unknown {
                 gateway.slice(2).toLowerCase()
             )
     }
-    return JSON.parse(text)
+    return {
+        ...JSON.parse(text),
+        deploymentVersion: foreverMoneyDeployment.version,
+    }
 }
 function withoutHash(plan: { hash: string }) {
     const { hash, ...rest } = plan
@@ -75,7 +78,7 @@ describe('dependency and V5 gateway migration', () => {
     })
 
     it.each(fixtures.cases)(
-        'preserves the original $method plan apart from the gateway address',
+        'preserves the original $method plan apart from deployment metadata',
         ({ method, input, plan }) => {
             const actual =
                 method === 'buildEvmToSubtensorPlan'

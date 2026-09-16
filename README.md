@@ -13,8 +13,8 @@ exposing configurable slippage.
 
 Bridge plans use the V5 gateways in `contracts.gateway`. The previous gateways
 remain under `contracts.legacyGateway` only so receipts and deliveries of
-bridges sent through them can still be tracked. Plans call the V5 entrypoints
-without a partner fee, so approvals and transaction value contain no partner cut.
+bridges sent through them can still be tracked. Plans call the zero-fee V5
+entrypoints unless a `partnerFee` is passed (see "Charge a partner fee").
 
 ## Install
 
@@ -125,6 +125,84 @@ staked source.
 The bridge does not deduct its fee from the destination amount. For both
 directions, the SDK encodes the bridge amount itself as the contract's minimum
 output; callers cannot weaken that invariant.
+
+## Bridge SN80 on Base
+
+Pass `asset: 'sn80'` to bridge Base SN80 to a Finney subnet-80 staked position,
+or bridge existing subnet-80 stake back to Base SN80. The default asset is `tao`,
+so existing TAO integrations keep their behavior. SN80 is supported on the Base
+lane with staked input/delivery; liquid TAO conversion and the Robinhood SN80
+lane are not supported by these methods.
+
+```ts
+const toFinney = await foreverMoney.bridge.prepareBaseToSubtensor({
+    asset: 'sn80',
+    sender: '0x...',
+    amountWei: 100n * 10n ** 18n, // 100 SN80
+    destination: '5...',
+    delivery: 'staked',
+})
+
+const toBase = await foreverMoney.bridge.prepareSubtensorToBase({
+    asset: 'sn80',
+    sender: '0x...',
+    recipient: '0x...',
+    amountWei: 100n * 10n ** 18n, // 100 staked SN80
+    source: 'staked',
+})
+```
+
+SN80 uses 18-decimal token units, restricted to whole alpha RAO (multiples of
+`10^9` token wei). The Finney approval uses the staking precompile and netuid
+`80` automatically; an explicitly different `netuid` is rejected. Base approves
+the SN80 ERC-20 to the V5 gateway. Both directions bridge the full SN80 amount
+with a 0% partner fee and charge network fees separately. The liquid TAO
+minimums do not apply to SN80 stake. SN80 delivery is always staked
+(`wantLiquid: false`), so the gateway never converts the stake into TAO.
+
+Bridging staked SN80 from Finney pulls the caller's alpha from the vault's own
+validator hotkey on netuid 80 (`AlphaVault.positionOf(SN80)`). Stake held with
+any other SN80 validator cannot be bridged until it is moved to that hotkey.
+
+Canonical SN80 token addresses are exported as `contracts.wrappedSn80`:
+
+- Base: `0x6F63d869011f95274498023b4ABFC00b30c34378`
+- Finney: `0xfD628dE75EF96f0A5C59659159C6cA81E0DC2222`
+
+The Base address `0x2292233d308188fcb3775f63a20f31dff6db02d9` is the SN80/TAO
+liquidity pool; bridge calls use the token addresses above.
+
+## Charge a partner fee
+
+Integrators can take a fee on each bridge by passing `partnerFee` to any bridge
+builder or preparation method. The fee is charged **on top** of `amountWei` and
+paid to `recipient` on the source chain in the same transaction; the full
+`amountWei` always crosses, and `minTaoOut` / `minTokenOut` still bound it.
+
+```ts
+const prepared = await foreverMoney.bridge.prepareBaseToSubtensor({
+    sender: '0x...',
+    amountWei: 100n * 10n ** 18n,
+    destination: '5...',
+    delivery: 'staked',
+    partnerFee: { recipient: '0xYourTreasury', bps: 100 }, // 1%
+})
+prepared.partnerFeeWei // 1 TAO: what the sender pays on top
+```
+
+What the sender supplies extra, per direction:
+
+| Direction                    | Extra input                                       | Plan effect                                             |
+| ---------------------------- | ------------------------------------------------- | ------------------------------------------------------- |
+| Base / Robinhood → Subtensor | `amount × bps / 10 000` of the token              | approval covers `amount + cut`; `bridgeToFinneyWithFee` |
+| Subtensor → EVM, liquid      | `partnerFeeTaoTopUp(amount, bps)` TAO (whole RAO) | added to the transaction value; `bridgeOutWithFee`      |
+| Subtensor → EVM, staked      | `alphaRao × bps / 10 000` of the caller's alpha   | staking approval covers it; `bridgeOutWithFee`          |
+
+`bps` must be an integer from 0 to 10 000; `0` or omitting `partnerFee` uses the
+original zero-fee entrypoints, so existing plans are unchanged. Each gateway caps
+the fee at `maxIntegratorFeeBps` (1% at deployment, governance can raise it to
+10%); `prepare*` reads the cap and throws `INVALID_PARTNER_FEE` when `bps`
+exceeds it. The recipient must not be the zero address or the gateway.
 
 ## Track bridge delivery
 

@@ -8,7 +8,8 @@ export const ROBINHOOD_CCIP_SELECTOR = 6_180_753_054_346_818_345n
 export const SUBTENSOR_CCIP_SELECTOR = 2_135_107_236_357_186_872n
 export const RAO_PER_TAO = 1_000_000_000n
 export const EVM_WEI_PER_RAO = 1_000_000_000n
-export const FOREVERMONEY_DEPLOYMENT_VERSION = '1.1.0' as const
+export const SN80_NETUID = 80n
+export const FOREVERMONEY_DEPLOYMENT_VERSION = '1.2.0' as const
 
 export const foreverMoneyDeployment = Object.freeze({
     version: FOREVERMONEY_DEPLOYMENT_VERSION,
@@ -24,6 +25,9 @@ export const foreverMoneyDeployment = Object.freeze({
             ),
             wrappedTao: getAddress(
                 '0xf3081494b87e8d5fb7960f066e931d1d0e6e3d67'
+            ),
+            wrappedSn80: getAddress(
+                '0x6f63d869011f95274498023b4abfc00b30c34378'
             ),
             ccipRouter: getAddress(
                 '0x881e3A65B4d4a04dD529061dd0071cf975F58bCD'
@@ -78,6 +82,9 @@ export const foreverMoneyDeployment = Object.freeze({
             ),
             wrappedTao: getAddress(
                 '0xC5b6C1632d34901239396F5E1BDe54B342900256'
+            ),
+            wrappedSn80: getAddress(
+                '0xfD628dE75EF96f0A5C59659159C6cA81E0DC2222'
             ),
             ccipRouter: getAddress(
                 '0xD941fBEcD2b971d0F54b4C34286C95faB52B60B8'
