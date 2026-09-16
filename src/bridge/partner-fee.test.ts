@@ -261,11 +261,14 @@ describe('Subtensor to EVM with a partner fee', () => {
                     case 'maxIntegratorFeeBps':
                         return 100
                     case 'quoteBridgeOutWithFee':
-                        expect(args[4]).toEqual({
+                        expect(args[6]).toEqual({
                             recipient: partner,
                             bps: 100,
                         })
-                        return [700n, 10n ** 18n, hundred]
+                        // liquid passes taoAmount = amount; staked passes alpha RAO
+                        return args[4] === hundred
+                            ? [700n, 10n ** 18n, 0n, hundred]
+                            : [700n, 0n, amountRao / 100n, hundred]
                     case 'allowance':
                         return allowance
                     default:
@@ -331,6 +334,27 @@ describe('Subtensor to EVM with a partner fee', () => {
         )
         expect(liquid.partnerFeeWei).toBe(10n ** 18n)
         expect(liquid.transactionValueWei).toBe(hundred + 10n ** 18n + 714n)
+    })
+})
+
+describe('partner fee quote consistency', () => {
+    it('rejects a gateway quote whose top-ups disagree with the SDK math', async () => {
+        const readContract = vi.fn(async ({ functionName }) => {
+            if (functionName === 'maxIntegratorFeeBps') return 100
+            if (functionName === 'quoteBridgeOutWithFee')
+                return [700n, 5n, 0n, hundred] // wrong TAO top-up
+            return 0n
+        })
+        await expect(
+            prepareSubtensorToEvm({ readContract } as unknown as PublicClient, {
+                evmChain: 'base',
+                sender,
+                recipient,
+                amountWei: hundred,
+                source: 'liquid',
+                partnerFee,
+            })
+        ).rejects.toMatchObject({ code: 'INVALID_PROVIDER_RESPONSE' })
     })
 })
 

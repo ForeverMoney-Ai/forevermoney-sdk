@@ -154,16 +154,23 @@ describe.skipIf(subtensorForkRpcUrl === undefined)(
             ).toBe(true)
             expect(await gateway.read.bridgeFeeBps()).toBe(0)
             expect(await gateway.read.maxIntegratorFeeBps()).toBeGreaterThan(0)
-            const [, hubCut, hubCrossing] =
+            const [hubFee, nativeTopUp, alphaTopUp, hubCrossing] =
                 await gateway.read.quoteBridgeOutWithFee([
                     base.ccipSelector,
                     subtensor.contracts.wrappedTao,
                     sender,
                     bridgeAmountWei,
+                    bridgeAmountWei,
+                    0n,
                     { recipient: sender, bps: 100 },
                 ])
-            expect(hubCut).toBe(bridgeAmountWei / 100n)
+            expect(hubFee).toBeGreaterThan(0n)
+            expect(nativeTopUp).toBe(bridgeAmountWei / 100n)
+            expect(alphaTopUp).toBe(0n)
             expect(hubCrossing).toBe(bridgeAmountWei)
+            expect(
+                await gateway.read.integratorCut([bridgeAmountWei, 100])
+            ).toBe(bridgeAmountWei / 100n)
             expect((await gateway.read.ROUTER()).toLowerCase()).toBe(
                 subtensor.contracts.ccipRouter.toLowerCase()
             )

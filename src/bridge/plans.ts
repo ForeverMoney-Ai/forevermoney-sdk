@@ -386,21 +386,53 @@ async function quoteHubWithFee(
     token: `0x${string}`,
     recipient: `0x${string}`,
     mintedAmount: bigint,
+    taoAmount: bigint,
+    stakedAlphaRao: bigint,
     fee: ResolvedPartnerFee
-): Promise<bigint> {
+): Promise<{
+    networkFee: bigint
+    taoTopUp: bigint
+    alphaTopUpRao: bigint
+}> {
     const maxBps = await provider.readContract({
         address: gateway,
         abi: alphaAbi,
         functionName: 'maxIntegratorFeeBps',
     })
     assertPartnerFeeAllowed(fee, maxBps)
-    const [networkFee] = await provider.readContract({
-        address: gateway,
-        abi: alphaAbi,
-        functionName: 'quoteBridgeOutWithFee',
-        args: [destSelector, token, recipient, mintedAmount, fee],
-    })
-    return networkFee
+    const [networkFee, taoTopUp, alphaTopUpRao, crossing] =
+        await provider.readContract({
+            address: gateway,
+            abi: alphaAbi,
+            functionName: 'quoteBridgeOutWithFee',
+            args: [
+                destSelector,
+                token,
+                recipient,
+                mintedAmount,
+                taoAmount,
+                stakedAlphaRao,
+                fee,
+            ],
+        })
+    // The gateway computes the same top-ups the plan builder does; a mismatch
+    // means the deployed contract differs from the ABI the SDK was built for.
+    if (
+        crossing !== mintedAmount ||
+        taoTopUp !== partnerFeeTaoTopUp(taoAmount, fee.bps) ||
+        alphaTopUpRao !== partnerFeeCut(stakedAlphaRao, fee.bps)
+    ) {
+        throw new ForeverMoneyError(
+            'INVALID_PROVIDER_RESPONSE',
+            'The gateway partner fee quote does not match the SDK fee calculation.',
+            {
+                crossing: crossing.toString(),
+                taoTopUp: taoTopUp.toString(),
+                alphaTopUpRao: alphaTopUpRao.toString(),
+            }
+        )
+    }
+    return { networkFee, taoTopUp, alphaTopUpRao }
 }
 export function buildEvmToSubtensorPlan(
     input: BuildEvmToSubtensorPlanRequest
@@ -685,6 +717,9 @@ export async function prepareSubtensorToEvm(
         input.partnerFee,
         subtensor.contracts.gateway
     )
+    const taoAmount = input.source === 'liquid' ? input.amountWei : 0n
+    const stakedAlphaRao =
+        input.source === 'staked' ? input.amountWei / EVM_WEI_PER_RAO : 0n
     const exactNetworkFeeWei =
         partnerFee.bps === 0
             ? await provider.readContract({
@@ -698,15 +733,19 @@ export async function prepareSubtensorToEvm(
                       input.amountWei,
                   ],
               })
-            : await quoteHubWithFee(
-                  provider,
-                  subtensor.contracts.gateway,
-                  evm.ccipSelector,
-                  asset.subtensorToken,
-                  recipient,
-                  input.amountWei,
-                  partnerFee
-              )
+            : (
+                  await quoteHubWithFee(
+                      provider,
+                      subtensor.contracts.gateway,
+                      evm.ccipSelector,
+                      asset.subtensorToken,
+                      recipient,
+                      input.amountWei,
+                      taoAmount,
+                      stakedAlphaRao,
+                      partnerFee
+                  )
+              ).networkFee
     let stakingAllowanceRao: bigint | undefined
     if (input.source === 'staked') {
         stakingAllowanceRao = await provider.readContract({
@@ -716,9 +755,6 @@ export async function prepareSubtensorToEvm(
             args: [sender, subtensor.contracts.gateway, netuid!],
         })
     }
-    const taoAmount = input.source === 'liquid' ? input.amountWei : 0n
-    const stakedAlphaRao =
-        input.source === 'staked' ? input.amountWei / EVM_WEI_PER_RAO : 0n
     const alphaTopUpRao = partnerFeeCut(stakedAlphaRao, partnerFee.bps)
     const taoTopUp = partnerFeeTaoTopUp(taoAmount, partnerFee.bps)
     const value = taoAmount + taoTopUp + feeWithBuffer(exactNetworkFeeWei)

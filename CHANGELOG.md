@@ -16,6 +16,8 @@
   Added `partnerFeeWei` to `BridgePreparation`, `MAX_PARTNER_FEE_BPS`,
   `partnerFeeCut`, `partnerFeeTaoTopUp`, and the `INVALID_PARTNER_FEE` error
   code. Omitting the fee keeps the zero-fee calls and byte-identical plans.
+  The hub quote uses the deployed `quoteBridgeOutWithFee(…, taoAmount,
+stakedAlphaRao, fee)` signature and cross-checks its top-ups against the SDK.
 - SN80 plans keep `minTaoOut` equal to the bridged amount, like TAO.
 - Updated deployment metadata version to 1.2.0.
 
