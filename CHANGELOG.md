@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (0.5.0)
+## 0.5.0 — 2026-09-16
 
 - Staked bridges from Subtensor can pull from several validators. Pass
   `stakePulls: [{ hotkey, amountRao }]` (1–16 entries, unique hotkeys, summing
@@ -12,9 +12,11 @@
   amounts, so each position needs headroom for its share. Added `StakePull`, `MAX_STAKE_PULLS`, and the
   `bridgeOutFromValidators*`, `minStakeRequired`, `MAX_STAKE_SOURCES` and
   `GATEWAY_COLDKEY` ABI entries.
-- `contracts.legacyGateway` is now `contracts.legacyGateways`, a list of retired
-  gateways (oldest first) used for receipt and delivery tracking. The Subtensor
-  gateway address will move to the V5.1 deployment in this release.
+- Moved the Subtensor gateway to the V5.1 deployment at
+  `0xd5Fa238aa4177f6c1341491969d9cBeec94EEd69`. `contracts.legacyGateway` is
+  now `contracts.legacyGateways`, a list of retired hubs (oldest first) used for
+  receipt and delivery tracking; the V5 hub stays listed because the spoke
+  gateways still deliver through it. Deployment metadata version is 1.3.0.
 
 ## 0.4.0 — 2026-09-16
 

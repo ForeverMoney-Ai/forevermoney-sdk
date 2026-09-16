@@ -9,7 +9,7 @@ export const SUBTENSOR_CCIP_SELECTOR = 2_135_107_236_357_186_872n
 export const RAO_PER_TAO = 1_000_000_000n
 export const EVM_WEI_PER_RAO = 1_000_000_000n
 export const SN80_NETUID = 80n
-export const FOREVERMONEY_DEPLOYMENT_VERSION = '1.2.0' as const
+export const FOREVERMONEY_DEPLOYMENT_VERSION = '1.3.0' as const
 
 export const foreverMoneyDeployment = Object.freeze({
     version: FOREVERMONEY_DEPLOYMENT_VERSION,
@@ -75,11 +75,13 @@ export const foreverMoneyDeployment = Object.freeze({
         chainId: SUBTENSOR_CHAIN_ID,
         ccipSelector: SUBTENSOR_CCIP_SELECTOR,
         contracts: Object.freeze({
-            // V5.1 AlphaGateway (multi-validator staked input). Replace with the
-            // new address once deployed; the V5 hub moves into legacyGateways.
-            gateway: getAddress('0xcd0C6d98D0A126B1c113d15b4c28F38321437787'),
+            // V5.1 AlphaGateway: multi-validator staked input (tao-bridge 485c898).
+            gateway: getAddress('0xd5Fa238aa4177f6c1341491969d9cBeec94EEd69'),
+            // V4 and V5 hubs. The spokes still deliver to the V5 hub (their hub
+            // pointer is immutable), so it stays here for delivery tracking.
             legacyGateways: [
                 getAddress('0x998f20Fea90bF7792774dECc7f994716442B1705'),
+                getAddress('0xcd0C6d98D0A126B1c113d15b4c28F38321437787'),
             ] as readonly `0x${string}`[],
             alphaVault: getAddress(
                 '0x11837459896D96F821a8D88eC93a3C8D152033D4'

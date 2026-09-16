@@ -35,14 +35,17 @@ describe('canonical production deployment', () => {
             '0xf27fdA637131E25B2A1b4865ED9597d881980c7E'
         )
         expect(foreverMoneyDeployment.subtensor.contracts.gateway).toBe(
-            '0xcd0C6d98D0A126B1c113d15b4c28F38321437787'
+            '0xd5Fa238aa4177f6c1341491969d9cBeec94EEd69'
         )
         expect(foreverMoneyDeployment.base.contracts.legacyGateways).toEqual([
             '0x5EF3d7D19e4b233a1A169DA0d5CB02ec6b160a2C',
         ])
         expect(
             foreverMoneyDeployment.subtensor.contracts.legacyGateways
-        ).toEqual(['0x998f20Fea90bF7792774dECc7f994716442B1705'])
+        ).toEqual([
+            '0x998f20Fea90bF7792774dECc7f994716442B1705',
+            '0xcd0C6d98D0A126B1c113d15b4c28F38321437787',
+        ])
         expect(foreverMoneyDeployment.base.contracts.ccipRouter).toBe(
             '0x881e3A65B4d4a04dD529061dd0071cf975F58bCD'
         )
