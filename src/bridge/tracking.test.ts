@@ -42,7 +42,7 @@ function executionLog(state: number) {
     return { ...encoded, transactionHash, args: { state } }
 }
 function claimableLog(
-    address = foreverMoneyDeployment.subtensor.contracts.gateway
+    address = foreverMoneyDeployment.subtensor.contracts.legacyGateway
 ) {
     const event = alphaGatewayAbi.find(
         (item) => item.type === 'event' && item.name === 'Claimable'
@@ -53,6 +53,17 @@ function claimableLog(
         '0x1111111111111111111111111111111111111111',
         10n,
         20n,
+    ])
+    return { address, ...encoded }
+}
+function notDeliveredLog(
+    address = foreverMoneyDeployment.subtensor.contracts.legacyGateway
+) {
+    const encoded = eventLog(alphaGatewayAbi, 'NotDelivered', [
+        foreverMoneyDeployment.base.ccipSelector,
+        foreverMoneyDeployment.subtensor.contracts.wrappedTao,
+        10n,
+        1,
     ])
     return { address, ...encoded }
 }
@@ -69,7 +80,7 @@ function bridgeSourceLog() {
         messageId,
     ])
     return {
-        address: foreverMoneyDeployment.base.contracts.gateway,
+        address: foreverMoneyDeployment.base.contracts.legacyGateway,
         ...encoded,
     }
 }
@@ -264,6 +275,38 @@ describe('CCIP delivery lifecycle', () => {
                     logs: [executionLog(2)],
                     receiptLogs: [
                         claimableLog(
+                            '0x4444444444444444444444444444444444444444'
+                        ),
+                    ],
+                }),
+                {
+                    direction: 'base-to-subtensor',
+                    messageId,
+                    fromBlock: 10,
+                }
+            )
+        ).resolves.toBe('success')
+    })
+    it('reports recovery when the gateway emits NotDelivered without Claimable', async () => {
+        await expect(
+            getCcipDeliveryStatus(
+                provider({
+                    logs: [executionLog(2)],
+                    receiptLogs: [notDeliveredLog()],
+                }),
+                {
+                    direction: 'base-to-subtensor',
+                    messageId,
+                    fromBlock: 10,
+                }
+            )
+        ).resolves.toBe('recovery')
+        await expect(
+            getCcipDeliveryStatus(
+                provider({
+                    logs: [executionLog(2)],
+                    receiptLogs: [
+                        notDeliveredLog(
                             '0x4444444444444444444444444444444444444444'
                         ),
                     ],

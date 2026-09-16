@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.3.0 — 2026-09-16
+
+- Moved bridging to the V5 gateways. `contracts.gateway` is now
+  `0x1da2415229b614C787e145D1D7346eb496319C52` on Base,
+  `0xf27fdA637131E25B2A1b4865ED9597d881980c7E` on Robinhood, and
+  `0xcd0C6d98D0A126B1c113d15b4c28F38321437787` on Subtensor. Existing approvals
+  for the old gateways do not carry over.
+- Added `contracts.legacyGateway` with the previous gateway addresses. Receipt
+  parsing and CCIP delivery tracking accept both, so bridges sent through the old
+  gateways can still be tracked.
+- Added the V5 `*WithFee` bridge entrypoints, `maxIntegratorFeeBps`,
+  `bridgeFeeBps`, `integratorTaoTopUp`, and the `NotDelivered` event to the ABIs.
+  Plans still use the zero-fee entrypoints; the partner fee is 0%.
+- Fixed the `claimableToken` ABI argument names to `(token, account)`, the
+  order the gateway has always used. The selector is unchanged.
+- `getCcipDeliveryStatus` reports `recovery` when the Subtensor gateway emits
+  `NotDelivered`, not only `Claimable`.
+- Added `MIN_LIQUID_SUBTENSOR_TO_EVM_WEI`: bridging liquid TAO from Subtensor
+  requires at least 0.002 TAO.
+- Plan regression fixtures now check the V5 plans, which differ from the
+  originals only in the gateway address.
+
 ## 0.2.0 — 2026-09-10
 
 - Replaced ethers with viem 2.56.3 for RPC clients, ABI encoding, gas estimation,

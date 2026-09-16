@@ -56,16 +56,23 @@ export function bridgeMessageIdFromReceipt(
         evmChainFromBridgeDirection(direction)
     )
     const evmToSubtensor = isEvmToSubtensorDirection(direction)
-    const [address, contractAbi, eventName] = evmToSubtensor
-        ? [evm.contracts.gateway, spokeGatewayAbi, 'BridgedToFinney']
+    const [addresses, contractAbi, eventName] = evmToSubtensor
+        ? [
+              [evm.contracts.legacyGateway, evm.contracts.gateway],
+              spokeGatewayAbi,
+              'BridgedToFinney',
+          ]
         : [
-              foreverMoneyDeployment.subtensor.contracts.gateway,
+              [
+                  foreverMoneyDeployment.subtensor.contracts.legacyGateway,
+                  foreverMoneyDeployment.subtensor.contracts.gateway,
+              ],
               alphaGatewayAbi,
               'BridgedOut',
           ]
 
     for (const log of receipt.logs) {
-        if (!isLogFrom(log, address)) continue
+        if (!addresses.some((address) => isLogFrom(log, address))) continue
         try {
             const parsed = decodeEventLog({
                 abi: contractAbi,

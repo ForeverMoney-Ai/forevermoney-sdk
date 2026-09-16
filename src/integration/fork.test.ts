@@ -32,18 +32,19 @@ describe.skipIf(baseForkRpcUrl === undefined)('Base production fork', () => {
         expect(await client.getChainId()).toBe(8453)
         expect(
             await client.getCode({
-                address: base.contracts.gateway,
+                address: base.contracts.legacyGateway,
                 blockNumber: BigInt(base.deploymentBlock - 1),
             })
         ).toBeUndefined()
         expect(
             await client.getCode({
-                address: base.contracts.gateway,
+                address: base.contracts.legacyGateway,
                 blockNumber: BigInt(base.deploymentBlock),
             })
         ).toBeTruthy()
         for (const address of [
             base.contracts.gateway,
+            base.contracts.legacyGateway,
             base.contracts.wrappedTao,
             base.contracts.vaultFactory,
             base.contracts.vaultManagerImplementation,
@@ -61,6 +62,7 @@ describe.skipIf(baseForkRpcUrl === undefined)('Base production fork', () => {
         expect((await gateway.read.SUBTENSOR_GATEWAY()).toLowerCase()).toBe(
             subtensor.contracts.gateway.toLowerCase()
         )
+        expect(await gateway.read.bridgeFeeBps()).toBe(0)
         expect((await gateway.read.ROUTER()).toLowerCase()).toBe(
             base.contracts.ccipRouter.toLowerCase()
         )
@@ -97,10 +99,11 @@ describe.skipIf(subtensorForkRpcUrl === undefined)(
             const client = createPublicClient({
                 transport: viemHttp(subtensorForkRpcUrl),
             })
-            const { base, subtensor } = foreverMoneyDeployment
+            const { base, robinhood, subtensor } = foreverMoneyDeployment
             expect(await client.getChainId()).toBe(964)
             for (const address of [
                 subtensor.contracts.gateway,
+                subtensor.contracts.legacyGateway,
                 subtensor.contracts.alphaVault,
                 subtensor.contracts.wrappedTao,
             ]) {
@@ -114,6 +117,10 @@ describe.skipIf(subtensorForkRpcUrl === undefined)(
             expect(await gateway.read.allowedLane([base.ccipSelector])).toBe(
                 true
             )
+            expect(
+                await gateway.read.allowedLane([robinhood.ccipSelector])
+            ).toBe(true)
+            expect(await gateway.read.bridgeFeeBps()).toBe(0)
             expect((await gateway.read.ROUTER()).toLowerCase()).toBe(
                 subtensor.contracts.ccipRouter.toLowerCase()
             )

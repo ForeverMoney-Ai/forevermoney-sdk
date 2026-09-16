@@ -1,8 +1,8 @@
 import { AccountId } from '@polkadot-api/substrate-bindings'
 const encodeAddress = (key: Uint8Array, prefix: number) =>
     AccountId(prefix).dec(key)
-import { decodeFunctionData, parseAbi, type Hex } from 'viem'
-import { describe, expect, it } from 'vitest'
+import { decodeFunctionData, parseAbi, type Hex, type PublicClient } from 'viem'
+import { describe, expect, it, vi } from 'vitest'
 import {
     ALPHA_GATEWAY_ABI,
     ERC20_ABI,
@@ -13,17 +13,113 @@ import {
     EVM_WEI_PER_RAO,
     ForeverMoneyError,
     MIN_LIQUID_BASE_TO_SUBTENSOR_WEI,
+    MIN_LIQUID_SUBTENSOR_TO_EVM_WEI,
     buildBaseToSubtensorPlan,
     buildEvmToSubtensorPlan,
     buildSubtensorToBasePlan,
     buildSubtensorToEvmPlan,
     foreverMoneyDeployment,
 } from '../index.js'
+import { prepareSubtensorToBase } from './plans.js'
 const sender = '0x1111111111111111111111111111111111111111'
 const recipient = '0x2222222222222222222222222222222222222222'
 const destination = encodeAddress(new Uint8Array(32).fill(7), 42)
 const amountWei = 2500000000000000000n
 describe('bridge transaction plans', () => {
+    it('enforces 0.002 TAO for a liquid Subtensor source in build and prepare', async () => {
+        const below = MIN_LIQUID_SUBTENSOR_TO_EVM_WEI - EVM_WEI_PER_RAO
+        const input = {
+            sender,
+            recipient,
+            amountWei: below,
+            source: 'liquid' as const,
+        }
+        expect(() =>
+            buildSubtensorToBasePlan({
+                ...input,
+                exactNetworkFeeWei: 100n,
+            })
+        ).toThrow('at least 0.002 TAO')
+        try {
+            buildSubtensorToBasePlan({ ...input, exactNetworkFeeWei: 100n })
+        } catch (error) {
+            expect(error).toMatchObject({
+                code: 'AMOUNT_BELOW_MINIMUM',
+                details: {
+                    amountWei: below.toString(),
+                    minimumAmountWei:
+                        MIN_LIQUID_SUBTENSOR_TO_EVM_WEI.toString(),
+                },
+            })
+        }
+        const readContract = vi.fn()
+        await expect(
+            prepareSubtensorToBase(
+                { readContract } as unknown as PublicClient,
+                input
+            )
+        ).rejects.toMatchObject({ code: 'AMOUNT_BELOW_MINIMUM' })
+        expect(readContract).not.toHaveBeenCalled()
+
+        expect(() =>
+            buildSubtensorToBasePlan({
+                ...input,
+                amountWei: MIN_LIQUID_SUBTENSOR_TO_EVM_WEI,
+                exactNetworkFeeWei: 100n,
+            })
+        ).not.toThrow()
+        expect(() =>
+            buildSubtensorToBasePlan({
+                ...input,
+                amountWei: EVM_WEI_PER_RAO,
+                source: 'staked',
+                netuid: 0n,
+                stakingAllowanceRao: 1n,
+                exactNetworkFeeWei: 100n,
+            })
+        ).not.toThrow()
+    })
+    it('bridges 100 tokens with a zero partner cut in both directions', () => {
+        const hundred = 100n * 10n ** 18n
+        const outbound = buildBaseToSubtensorPlan({
+            sender,
+            amountWei: hundred,
+            destination,
+            delivery: 'staked',
+            allowanceWei: 0n,
+            exactNetworkFeeWei: 100n,
+        })
+        const approval = decodeFunctionData({
+            abi: parseAbi(ERC20_ABI),
+            data: outbound.steps[0]!.transaction.data as Hex,
+        })
+        const bridge = decodeFunctionData({
+            abi: parseAbi(SPOKE_GATEWAY_ABI),
+            data: outbound.steps[1]!.transaction.data as Hex,
+        })
+        expect(approval.args?.[1]).toBe(hundred)
+        expect(bridge.functionName).toBe('bridgeToFinney')
+        expect(bridge.args?.[1]).toBe(hundred)
+        expect(outbound.steps[1]!.transaction.value).toBe('102')
+
+        const inbound = buildSubtensorToBasePlan({
+            sender,
+            recipient,
+            amountWei: hundred,
+            source: 'liquid',
+            exactNetworkFeeWei: 100n,
+        })
+        const inboundCall = decodeFunctionData({
+            abi: parseAbi(ALPHA_GATEWAY_ABI),
+            data: inbound.steps[0]!.transaction.data as Hex,
+        })
+        expect(inboundCall.functionName).toBe('bridgeOut')
+        expect(inboundCall.args?.[3]).toBe(hundred)
+        expect(inboundCall.args?.[5]).toBe(hundred)
+        expect(inbound.steps[0]!.transaction.value).toBe(
+            (hundred + 102n).toString()
+        )
+    })
     it('builds an exact-amount approval followed by Base to Subtensor bridge', () => {
         const plan = buildBaseToSubtensorPlan({
             sender,

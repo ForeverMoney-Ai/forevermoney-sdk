@@ -34,6 +34,8 @@ const alphaAbi = parseAbi(ALPHA_GATEWAY_ABI)
 const stakingAbi = parseAbi(STAKING_ABI)
 export const MIN_LIQUID_EVM_TO_SUBTENSOR_WEI = 10000000000000000n
 export const MIN_LIQUID_BASE_TO_SUBTENSOR_WEI = MIN_LIQUID_EVM_TO_SUBTENSOR_WEI
+// Subtensor's minimum new stake is 2,000,000 RAO (0.002 TAO).
+export const MIN_LIQUID_SUBTENSOR_TO_EVM_WEI = 2_000_000n * EVM_WEI_PER_RAO
 export type SubtensorDelivery = 'liquid' | 'staked'
 export type SubtensorSource = 'liquid' | 'staked'
 export interface EvmToSubtensorRequest {
@@ -86,6 +88,22 @@ function assertBaseToSubtensorAmount(
             {
                 amountWei: amountWei.toString(),
                 minimumAmountWei: MIN_LIQUID_EVM_TO_SUBTENSOR_WEI.toString(),
+            }
+        )
+    }
+}
+function assertSubtensorToEvmAmount(
+    amountWei: bigint,
+    source: SubtensorSource
+): void {
+    assertWholeRao(amountWei)
+    if (source === 'liquid' && amountWei < MIN_LIQUID_SUBTENSOR_TO_EVM_WEI) {
+        throw new ForeverMoneyError(
+            'AMOUNT_BELOW_MINIMUM',
+            'Bridging liquid TAO from Subtensor requires at least 0.002 TAO.',
+            {
+                amountWei: amountWei.toString(),
+                minimumAmountWei: MIN_LIQUID_SUBTENSOR_TO_EVM_WEI.toString(),
             }
         )
     }
@@ -206,7 +224,7 @@ export function buildSubtensorToEvmPlan(
     const sender = normalizeEvmAddress(input.sender)
     const recipient = normalizeEvmAddress(input.recipient)
     assertSource(input.source)
-    assertWholeRao(input.amountWei)
+    assertSubtensorToEvmAmount(input.amountWei, input.source)
     assertNonNegativeAmount(input.exactNetworkFeeWei, 'Network fee')
     const { subtensor } = foreverMoneyDeployment
     const evm = getForeverMoneyEvmDeployment(input.evmChain)
@@ -368,7 +386,7 @@ export async function prepareSubtensorToEvm(
     const sender = normalizeEvmAddress(input.sender)
     const recipient = normalizeEvmAddress(input.recipient)
     assertSource(input.source)
-    assertWholeRao(input.amountWei)
+    assertSubtensorToEvmAmount(input.amountWei, input.source)
     const { subtensor } = foreverMoneyDeployment
     const evm = getForeverMoneyEvmDeployment(input.evmChain)
     const exactNetworkFeeWei = await provider.readContract({

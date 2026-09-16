@@ -18,7 +18,10 @@ export const foreverMoneyDeployment = Object.freeze({
         chainId: BASE_CHAIN_ID,
         ccipSelector: BASE_CCIP_SELECTOR,
         contracts: Object.freeze({
-            gateway: getAddress('0x5EF3d7D19e4b233a1A169DA0d5CB02ec6b160a2C'),
+            gateway: getAddress('0x1da2415229b614C787e145D1D7346eb496319C52'),
+            legacyGateway: getAddress(
+                '0x5EF3d7D19e4b233a1A169DA0d5CB02ec6b160a2C'
+            ),
             wrappedTao: getAddress(
                 '0xf3081494b87e8d5fb7960f066e931d1d0e6e3d67'
             ),
@@ -47,7 +50,10 @@ export const foreverMoneyDeployment = Object.freeze({
         chainId: ROBINHOOD_CHAIN_ID,
         ccipSelector: ROBINHOOD_CCIP_SELECTOR,
         contracts: Object.freeze({
-            gateway: getAddress('0x53Dcc4FE04193e489BE537F722F65317DB1E65d8'),
+            gateway: getAddress('0xf27fdA637131E25B2A1b4865ED9597d881980c7E'),
+            legacyGateway: getAddress(
+                '0x53Dcc4FE04193e489BE537F722F65317DB1E65d8'
+            ),
             wrappedTao: getAddress(
                 '0xf3081494B87e8D5fb7960f066E931D1D0e6E3d67'
             ),
@@ -63,7 +69,10 @@ export const foreverMoneyDeployment = Object.freeze({
         chainId: SUBTENSOR_CHAIN_ID,
         ccipSelector: SUBTENSOR_CCIP_SELECTOR,
         contracts: Object.freeze({
-            gateway: getAddress('0x998f20Fea90bF7792774dECc7f994716442B1705'),
+            gateway: getAddress('0xcd0C6d98D0A126B1c113d15b4c28F38321437787'),
+            legacyGateway: getAddress(
+                '0x998f20Fea90bF7792774dECc7f994716442B1705'
+            ),
             alphaVault: getAddress(
                 '0x11837459896D96F821a8D88eC93a3C8D152033D4'
             ),

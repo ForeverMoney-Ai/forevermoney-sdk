@@ -61,7 +61,7 @@ function rpcReceipt(logs: ReturnType<typeof rpcLog>[], status = '0x1') {
         blockHash: hash,
         blockNumber: '0x10',
         from: sender,
-        to: base.contracts.gateway,
+        to: base.contracts.legacyGateway,
         cumulativeGasUsed: '0x100',
         gasUsed: '0x100',
         effectiveGasPrice: '0x1',
@@ -76,7 +76,7 @@ function rpcReceipt(logs: ReturnType<typeof rpcLog>[], status = '0x1') {
 describe('viem RPC integration boundaries', () => {
     it('decodes raw source receipts and rejects invalid status values', async () => {
         const log = rpcLog(
-            base.contracts.gateway,
+            base.contracts.legacyGateway,
             eventLog(parseAbi(SPOKE_GATEWAY_ABI), 'BridgedToFinney', [
                 base.contracts.wrappedTao,
                 sender,
@@ -126,7 +126,7 @@ describe('viem RPC integration boundaries', () => {
             ])
         )
         const claimable = rpcLog(
-            subtensor.contracts.gateway,
+            subtensor.contracts.legacyGateway,
             eventLog(parseAbi(ALPHA_GATEWAY_ABI), 'Claimable', [
                 subtensor.contracts.wrappedTao,
                 sender,
@@ -316,7 +316,7 @@ describe('legacy JSON-RPC provider compatibility', () => {
         'reads %s source status through a legacy provider',
         async (status) => {
             const log = rpcLog(
-                base.contracts.gateway,
+                base.contracts.legacyGateway,
                 eventLog(parseAbi(SPOKE_GATEWAY_ABI), 'BridgedToFinney', [
                     base.contracts.wrappedTao,
                     sender,
@@ -364,7 +364,7 @@ describe('legacy JSON-RPC provider compatibility', () => {
                 )
             )
             const claimable = rpcLog(
-                subtensor.contracts.gateway,
+                subtensor.contracts.legacyGateway,
                 eventLog(parseAbi(ALPHA_GATEWAY_ABI), 'Claimable', [
                     subtensor.contracts.wrappedTao,
                     sender,

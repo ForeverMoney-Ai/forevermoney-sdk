@@ -11,6 +11,11 @@ is transferred 1:1 and the network fee is charged separately, so the SDK fixes
 the contract's minimum destination output to the bridged principal instead of
 exposing configurable slippage.
 
+Bridge plans use the V5 gateways in `contracts.gateway`. The previous gateways
+remain under `contracts.legacyGateway` only so receipts and deliveries of
+bridges sent through them can still be tracked. Plans call the V5 entrypoints
+without a partner fee, so approvals and transaction value contain no partner cut.
+
 ## Install
 
 ```bash
@@ -113,6 +118,9 @@ method.
 
 For a staked source, pass the stake `netuid`. The SDK reads the staking
 precompile allowance and expresses the approval in RAO.
+For a liquid Subtensor source, the SDK requires at least 0.002 TAO because the
+gateway stakes it before bridging. This minimum does not apply to an existing
+staked source.
 
 The bridge does not deduct its fee from the destination amount. For both
 directions, the SDK encodes the bridge amount itself as the contract's minimum

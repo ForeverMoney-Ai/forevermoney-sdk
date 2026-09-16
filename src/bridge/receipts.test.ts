@@ -19,7 +19,8 @@ describe('canonical bridge receipt parsing', () => {
         const receipt = {
             logs: [
                 {
-                    address: foreverMoneyDeployment.base.contracts.gateway,
+                    address:
+                        foreverMoneyDeployment.base.contracts.legacyGateway,
                     ...event,
                 },
             ],
@@ -46,7 +47,8 @@ describe('canonical bridge receipt parsing', () => {
                 logs: [
                     {
                         address:
-                            foreverMoneyDeployment.subtensor.contracts.gateway,
+                            foreverMoneyDeployment.subtensor.contracts
+                                .legacyGateway,
                         ...bridgeEvent,
                     },
                 ],
@@ -67,7 +69,8 @@ describe('canonical bridge receipt parsing', () => {
                 logs: [
                     {
                         address:
-                            foreverMoneyDeployment.robinhood.contracts.gateway,
+                            foreverMoneyDeployment.robinhood.contracts
+                                .legacyGateway,
                         ...toSubtensor,
                     },
                 ],
@@ -87,7 +90,8 @@ describe('canonical bridge receipt parsing', () => {
                 logs: [
                     {
                         address:
-                            foreverMoneyDeployment.subtensor.contracts.gateway,
+                            foreverMoneyDeployment.subtensor.contracts
+                                .legacyGateway,
                         ...toRobinhood,
                     },
                 ],
@@ -98,7 +102,8 @@ describe('canonical bridge receipt parsing', () => {
                 logs: [
                     {
                         address:
-                            foreverMoneyDeployment.subtensor.contracts.gateway,
+                            foreverMoneyDeployment.subtensor.contracts
+                                .legacyGateway,
                         ...toRobinhood,
                     },
                 ],

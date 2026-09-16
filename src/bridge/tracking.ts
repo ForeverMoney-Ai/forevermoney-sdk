@@ -229,21 +229,26 @@ export async function getCcipDeliveryStatus(
             'The CCIP execution receipt is unavailable.'
         )
     }
+    const subtensorGateways = [
+        foreverMoneyDeployment.subtensor.contracts.legacyGateway,
+        foreverMoneyDeployment.subtensor.contracts.gateway,
+    ]
     for (const log of receipt.logs) {
         if (
-            log.address.toLowerCase() !==
-            foreverMoneyDeployment.subtensor.contracts.gateway.toLowerCase()
+            !subtensorGateways.some(
+                (gateway) => log.address.toLowerCase() === gateway.toLowerCase()
+            )
         ) {
             continue
         }
         try {
-            if (
-                decodeEventLog({
-                    abi: alphaGatewayAbi,
-                    data: log.data,
-                    topics: log.topics,
-                }).eventName === 'Claimable'
-            ) {
+            const { eventName } = decodeEventLog({
+                abi: alphaGatewayAbi,
+                data: log.data,
+                topics: log.topics,
+            })
+            // V5 can report an undelivered message without a Claimable event.
+            if (eventName === 'Claimable' || eventName === 'NotDelivered') {
                 return 'recovery'
             }
         } catch {
