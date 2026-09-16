@@ -8,8 +8,8 @@
   `bridgeOutFromValidators` (or `…WithFee`), which re-delegates every pull to
   the token's canonical validator before depositing. Without `stakePulls` the
   plan keeps the single-validator `bridgeOut` call. With a partner fee the cut
-  is pulled from `stakePulls[0]` on top, so that position must hold
-  `amountRao + cut`. Added `StakePull`, `MAX_STAKE_PULLS`, and the
+  is charged on top and spread across the pulls in proportion to their
+  amounts, so each position needs headroom for its share. Added `StakePull`, `MAX_STAKE_PULLS`, and the
   `bridgeOutFromValidators*`, `minStakeRequired`, `MAX_STAKE_SOURCES` and
   `GATEWAY_COLDKEY` ABI entries.
 - `contracts.legacyGateway` is now `contracts.legacyGateways`, a list of retired

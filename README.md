@@ -198,8 +198,9 @@ entries, unique non-zero hotkeys, positive amounts, and a sum equal to the
 bridged amount in RAO. One staking approval on the netuid covers every pull.
 Nothing on-chain enforces the runtime's minimum stake on what you leave behind
 (`minStakeRequired()`, 0.02 TAO-equivalent), so size each pull to either drain
-the position or leave at least that much. With a partner fee the cut is pulled
-from `stakePulls[0]` on top of its amount.
+the position or leave at least that much. With a partner fee the cut is charged
+on top and spread across the pulls in proportion to their amounts, so each
+position needs headroom for its share.
 
 ## Charge a partner fee
 

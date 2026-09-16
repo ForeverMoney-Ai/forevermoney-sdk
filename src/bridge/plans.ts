@@ -87,8 +87,9 @@ export interface SubtensorToEvmRequest {
     /**
      * For a staked source: the positions to pull, summing to `amountWei` in
      * RAO. Omit when the stake already sits on the token's canonical validator.
-     * With a partner fee, the cut is pulled from `stakePulls[0]` on top, so that
-     * position must hold `amountRao + cut`.
+     * With a partner fee, the cut is charged on top and spread across the pulls
+     * in proportion to their amounts, so each position must hold its amount
+     * plus its share of the cut.
      */
     readonly stakePulls?: readonly StakePull[]
 }
