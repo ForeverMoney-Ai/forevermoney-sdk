@@ -442,3 +442,59 @@ steps are in [`docs/releasing.md`](./docs/releasing.md).
 ### Minimum bridge output
 
 Subtensor-to-EVM builders and preparation methods accept optional `minAmountOutWei` (destination token units, 18 decimals, after partner fees). It must be positive and no greater than `amountWei`; omission preserves the exact-output default. Choose the minimum explicitly to cover your acceptable slippage or native staking rounding dust. The SDK uses the same value for gas estimation and final transaction calldata. For example, `minAmountOutWei: amountWei - 4n * EVM_WEI_PER_RAO` allows four native RAO of dust when the amount exceeds that budget. This does not change the input amount or approval amount.
+
+### Optional stake rounding adjustment
+
+`client.bridge.prepareSubtensorToEvm` (and `prepareSubtensorToBase`) accepts
+`stakeRounding: { enabled: true, positions, minStakeRao }`. Omit it, pass `false`,
+or set `enabled: false` to preserve the exact requested input with no search.
+Synchronous `build*Plan` methods never simulate or adjust amounts.
+
+```ts
+import { stakedMinimumOutput } from '@forevermoney/sdk'
+
+const prepared = await client.bridge.prepareSubtensorToEvm({
+    evmChain: 'base',
+    asset: 'sn80',
+    source: 'staked',
+    sender,
+    recipient,
+    amountWei,
+    stakePulls,
+    minAmountOutWei: stakedMinimumOutput(amountWei, stakePulls.length),
+    stakeRounding: {
+        enabled: true,
+        positions, // [{ hotkey, stakeRao }], freshly read source balances
+        minStakeRao: 0n, // caller's minimum positive remainder per validator
+    },
+})
+```
+
+Only `StrandedStake(bytes32,uint256)` triggers adjustment. The SDK reduces the
+named validator's pull by one alpha base unit per attempt, for at most eight
+reductions, re-quotes fees and simulates the exact candidate. It keeps the
+**original absolute minimum output**, checks balances and remaining stake,
+including the partner fee apportioned on top, and propagates unrelated errors.
+The search stops if no valid candidate fits that budget. `stakedMinimumOutput`
+provides an explicit dust tolerance of two base units per source plus two for
+the deposit; tiny inputs retain an exact minimum. It is not a guarantee of
+successful execution.
+
+When enabled, `prepared.stakeRounding` reports `requestedAmountWei`, the actual
+`amountWei`, `minAmountOutWei`, `pulls`, and `simulationComplete`. Display the
+returned amount and use **the returned plan**, rather than rebuilding from the
+original request. If approval is required, `simulationComplete` is false:
+confirm approval, refresh balances, and prepare again before sending the bridge.
+Revalidate before signing; if the amount changes again, show it for review.
+Keep the original `minAmountOutWei` when re-preparing an adjusted amount so
+successive attempts cannot gradually lower output protection. Never automatically
+retry a broadcast transaction.
+
+For custom ethers/wallet quote flows, the SDK also exports
+`estimateRoundedStake({ amountWei, minAmountOutWei, pulls, positions,
+minStakeRao, adjustRounding, partnerFeeBps, quoteAndEstimate, isActive })`.
+`adjustRounding` defaults to true **for this explicitly invoked helper**; false
+performs one exact estimate. Its callback must quote and estimate the supplied
+candidate and minimum, and must never sign or broadcast. An optional `isActive`
+callback stops obsolete work between requests. `strandedStakeSource(error)`
+decodes nested RPC/ethers/viem errors for UI error messages.

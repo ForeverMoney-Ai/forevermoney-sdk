@@ -1,3 +1,4 @@
+export * from './bridge/stake-rounding.js'
 export * from './core/addresses.js'
 export * from './core/amounts.js'
 export { foreverMoneyAbis } from './abis/index.js'

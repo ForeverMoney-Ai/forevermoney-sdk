@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.2 — 2026-09-16
+
+- Added opt-in stake rounding adjustment to Subtensor bridge preparation, with an explicit disable option and adjusted amount/plan metadata. Searches only on `StrandedStake`, preserves minimum output, requotes candidates and checks source balances, minimum remainders and partner-fee allocations. Approval-required plans are explicitly marked as not yet simulated.
+- Exported the same provider-neutral search (`estimateRoundedStake`), nested revert decoder and dust minimum helper so integrations do not need their own rounding implementation.
+
 ## 0.5.1 — 2026-09-16
 
 - Added optional `minAmountOutWei` to Subtensor-to-EVM bridge requests. Callers can explicitly bound output slippage, including staking rounding dust. Defaults to the input amount; rejects zero, negative, non-bigint, and above-input minima before RPC calls. The same minimum is used for gas estimation and final calldata, for single- and multi-validator routes with or without partner fees.

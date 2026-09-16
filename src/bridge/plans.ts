@@ -1,3 +1,8 @@
+import {
+    estimateRoundedStake,
+    type StakeRoundingOptions,
+    type StakeRoundingResult,
+} from './stake-rounding.js'
 import { encodeFunctionData, parseAbi, type PublicClient } from 'viem'
 import {
     ALPHA_GATEWAY_ABI,
@@ -76,6 +81,11 @@ export interface EvmToSubtensorRequest {
     readonly delivery: SubtensorDelivery
 }
 export interface SubtensorToEvmRequest {
+    /** Opt-in read-only amount adjustment. False/omitted preserves exact input.
+     * Requires named stakePulls and current balances; minAmountOutWei is never lowered.
+     * Preparation may return an approval first; prepare again after it confirms.
+     */
+    readonly stakeRounding?: false | StakeRoundingOptions
     /** Minimum destination-token output in 18-decimal wei, after partner fees.
      * Defaults to amountWei. Must be positive and no greater than amountWei.
      * Callers choose their tolerance explicitly, including staking rounding dust.
@@ -101,6 +111,8 @@ export interface SubtensorToEvmRequest {
 export type BaseToSubtensorRequest = Omit<EvmToSubtensorRequest, 'evmChain'>
 export type SubtensorToBaseRequest = Omit<SubtensorToEvmRequest, 'evmChain'>
 export interface BridgePreparation {
+    /** Present when rounding was enabled. Display the returned amount and use its plan. */
+    readonly stakeRounding?: StakeRoundingResult
     readonly exactNetworkFeeWei: bigint
     readonly transactionValueWei: bigint
     /**
@@ -832,7 +844,7 @@ export function prepareBaseToSubtensor(
 ): Promise<BridgePreparation> {
     return prepareEvmToSubtensor(provider, { ...input, evmChain: 'base' })
 }
-export async function prepareSubtensorToEvm(
+async function prepareSubtensorToEvmExact(
     provider: PublicClient,
     input: SubtensorToEvmRequest
 ): Promise<BridgePreparation> {
@@ -930,6 +942,62 @@ export async function prepareSubtensorToEvm(
         plan,
     })
 }
+/** Prepare an exact or explicitly rounding-adjusted plan. No transactions are sent. */
+export async function prepareSubtensorToEvm(
+    provider: PublicClient,
+    input: SubtensorToEvmRequest
+): Promise<BridgePreparation> {
+    const options = input.stakeRounding
+    if (
+        options != null &&
+        options !== false &&
+        typeof options.enabled !== 'boolean'
+    ) {
+        throw new ForeverMoneyError(
+            'INVALID_TRANSACTION_PLAN',
+            'stakeRounding.enabled must be a boolean.'
+        )
+    }
+    if (!options || !options.enabled)
+        return prepareSubtensorToEvmExact(provider, input)
+    if (input.source !== 'staked' || !input.stakePulls?.length) {
+        throw new ForeverMoneyError(
+            'INVALID_TRANSACTION_PLAN',
+            'Stake rounding requires a staked source with named stakePulls.'
+        )
+    }
+    const minimum = minimumSubtensorOutput(input)
+    const result = await estimateRoundedStake({
+        amountWei: input.amountWei,
+        minAmountOutWei: minimum,
+        pulls: input.stakePulls,
+        positions: options.positions,
+        minStakeRao: options.minStakeRao ?? 0n,
+        partnerFeeBps: input.partnerFee?.bps ?? 0,
+        quoteAndEstimate: async (amountWei, stakePulls, minAmountOutWei) => ({
+            prepared: await prepareSubtensorToEvmExact(provider, {
+                ...input,
+                amountWei,
+                stakePulls,
+                minAmountOutWei,
+                stakeRounding: false,
+            }),
+        }),
+    })
+    return Object.freeze({
+        ...result.prepared,
+        stakeRounding: Object.freeze({
+            requestedAmountWei: input.amountWei,
+            amountWei: result.amountWei,
+            minAmountOutWei: result.minAmountOutWei,
+            pulls: result.pulls,
+            simulationComplete: !result.prepared.plan.steps.some(
+                (step) => step.kind === 'approval'
+            ),
+        }),
+    })
+}
+
 export function prepareSubtensorToBase(
     provider: PublicClient,
     input: SubtensorToBaseRequest
