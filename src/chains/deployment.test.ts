@@ -6,6 +6,7 @@ import {
     ROBINHOOD_CHAIN_ID,
     SUBTENSOR_CCIP_SELECTOR,
     SUBTENSOR_CHAIN_ID,
+    SN80_NETUID,
     foreverMoneyDeployment,
 } from '../index.js'
 
@@ -28,9 +29,18 @@ describe('canonical production deployment', () => {
             ROBINHOOD_CCIP_SELECTOR
         )
         expect(foreverMoneyDeployment.base.contracts.gateway).toBe(
-            '0x5EF3d7D19e4b233a1A169DA0d5CB02ec6b160a2C'
+            '0x1da2415229b614C787e145D1D7346eb496319C52'
+        )
+        expect(foreverMoneyDeployment.robinhood.contracts.gateway).toBe(
+            '0xf27fdA637131E25B2A1b4865ED9597d881980c7E'
         )
         expect(foreverMoneyDeployment.subtensor.contracts.gateway).toBe(
+            '0xcd0C6d98D0A126B1c113d15b4c28F38321437787'
+        )
+        expect(foreverMoneyDeployment.base.contracts.legacyGateway).toBe(
+            '0x5EF3d7D19e4b233a1A169DA0d5CB02ec6b160a2C'
+        )
+        expect(foreverMoneyDeployment.subtensor.contracts.legacyGateway).toBe(
             '0x998f20Fea90bF7792774dECc7f994716442B1705'
         )
         expect(foreverMoneyDeployment.base.contracts.ccipRouter).toBe(
@@ -46,7 +56,14 @@ describe('canonical production deployment', () => {
             foreverMoneyDeployment.subtensor.contracts.ccipOffRampFromBase
         ).toBe('0x51a6150400ed9F0Ae240F5D1b15E3b45Fc4339C7')
         expect(foreverMoneyDeployment.base.deploymentBlock).toBe(50_098_800)
-        expect(foreverMoneyDeployment.robinhood.contracts.gateway).toBe(
+        expect(SN80_NETUID).toBe(80n)
+        expect(foreverMoneyDeployment.base.contracts.wrappedSn80).toBe(
+            '0x6F63d869011f95274498023b4ABFC00b30c34378'
+        )
+        expect(foreverMoneyDeployment.subtensor.contracts.wrappedSn80).toBe(
+            '0xfD628dE75EF96f0A5C59659159C6cA81E0DC2222'
+        )
+        expect(foreverMoneyDeployment.robinhood.contracts.legacyGateway).toBe(
             '0x53Dcc4FE04193e489BE537F722F65317DB1E65d8'
         )
         expect(

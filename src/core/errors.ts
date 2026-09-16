@@ -5,6 +5,7 @@ export type ForeverMoneyErrorCode =
     | 'CHAIN_MISMATCH'
     | 'INVALID_ADDRESS'
     | 'INVALID_BYTES32'
+    | 'INVALID_PARTNER_FEE'
     | 'INVALID_PROVIDER_RESPONSE'
     | 'INVALID_SS58'
     | 'INVALID_TRANSACTION_PLAN'

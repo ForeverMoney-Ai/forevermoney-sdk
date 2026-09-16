@@ -1,4 +1,11 @@
-import { Interface, toBeHex, type AbstractProvider } from 'ethers'
+import { trackingClient, type TrackingProvider } from '../core/transport.js'
+import {
+    decodeEventLog,
+    parseAbi,
+    TransactionReceiptNotFoundError,
+    type Hex,
+    type PublicClient,
+} from 'viem'
 import { ALPHA_GATEWAY_ABI, CCIP_EXECUTION_ABI } from '../abis/index.js'
 import { foreverMoneyDeployment } from '../chains/deployment.js'
 import { ForeverMoneyError } from '../core/errors.js'
@@ -12,8 +19,8 @@ import {
 import { getForeverMoneyEvmDeployment } from '../chains/deployment.js'
 import { normalizeBytes32 } from '../core/validation.js'
 
-const ccipExecutionInterface = new Interface(CCIP_EXECUTION_ABI)
-const alphaGatewayInterface = new Interface(ALPHA_GATEWAY_ABI)
+const ccipExecutionAbi = parseAbi(CCIP_EXECUTION_ABI)
+const alphaGatewayAbi = parseAbi(ALPHA_GATEWAY_ABI)
 
 export type CcipDeliveryStatus = 'failure' | 'recovery' | 'success' | 'waiting'
 
@@ -73,25 +80,25 @@ export function sourceChainId(direction: BridgeDirection): number {
 }
 
 async function assertProviderChain(
-    provider: AbstractProvider,
+    provider: PublicClient,
     expectedChainId: number,
     label: string
 ): Promise<void> {
-    const network = await provider.getNetwork()
-    if (network.chainId !== BigInt(expectedChainId)) {
+    const chainId = await provider.getChainId()
+    if (chainId !== expectedChainId) {
         throw new ForeverMoneyError(
             'CHAIN_MISMATCH',
-            `${label} transport reported chain ID ${network.chainId}; expected ${expectedChainId}.`,
+            `${label} transport reported chain ID ${chainId}; expected ${expectedChainId}.`,
             {
                 expectedChainId,
-                actualChainId: network.chainId.toString(),
+                actualChainId: chainId.toString(),
             }
         )
     }
 }
 
 async function assertDestinationProvider(
-    provider: AbstractProvider,
+    provider: PublicClient,
     direction: BridgeDirection
 ): Promise<number> {
     const expectedChainId = destinationChainId(direction)
@@ -100,16 +107,17 @@ async function assertDestinationProvider(
 }
 
 export async function getBridgeSourceStatus(
-    provider: AbstractProvider,
+    provider: TrackingProvider,
     input: BridgeSourceStatusRequest
 ): Promise<BridgeSourceStatus> {
+    const client = trackingClient(provider)
     const expectedChainId = sourceChainId(input.direction)
     const transactionHash = normalizeBytes32(
         input.transactionHash,
         'Transaction hash'
     )
-    await assertProviderChain(provider, expectedChainId, 'Bridge source')
-    const receipt = await provider.getTransactionReceipt(transactionHash)
+    await assertProviderChain(client, expectedChainId, 'Bridge source')
+    const receipt = await receiptOrNull(client, transactionHash)
     if (receipt === null) {
         return Object.freeze({
             direction: input.direction,
@@ -119,7 +127,7 @@ export async function getBridgeSourceStatus(
             messageId: null,
         })
     }
-    if (receipt.status === 0) {
+    if (receipt.status === 'reverted') {
         return Object.freeze({
             direction: input.direction,
             sourceChainId: expectedChainId,
@@ -128,7 +136,7 @@ export async function getBridgeSourceStatus(
             messageId: null,
         })
     }
-    if (receipt.status !== 1) {
+    if (receipt.status !== 'success') {
         throw new ForeverMoneyError(
             'INVALID_PROVIDER_RESPONSE',
             'The bridge source receipt has an invalid status.'
@@ -151,11 +159,13 @@ export async function getBridgeSourceStatus(
 }
 
 export async function getCcipDeliveryCheckpoint(
-    provider: AbstractProvider,
+    provider: TrackingProvider,
     direction: BridgeDirection
 ): Promise<CcipDeliveryCheckpoint> {
-    const expectedChainId = await assertDestinationProvider(provider, direction)
-    const fromBlock = await provider.getBlockNumber()
+    const client = trackingClient(provider)
+    const expectedChainId = await assertDestinationProvider(client, direction)
+    const blockNumber = await client.getBlockNumber({ cacheTime: 0 })
+    const fromBlock = Number(blockNumber)
     if (!Number.isSafeInteger(fromBlock) || fromBlock < 0) {
         throw new ForeverMoneyError(
             'INVALID_PROVIDER_RESPONSE',
@@ -170,9 +180,10 @@ export async function getCcipDeliveryCheckpoint(
 }
 
 export async function getCcipDeliveryStatus(
-    provider: AbstractProvider,
+    provider: TrackingProvider,
     input: CcipDeliveryStatusRequest
 ): Promise<CcipDeliveryStatus> {
+    const client = trackingClient(provider)
     const expectedChainId = destinationChainId(input.direction)
     const messageId = normalizeBytes32(input.messageId, 'CCIP message ID')
     if (!Number.isSafeInteger(input.fromBlock) || input.fromBlock < 0) {
@@ -181,12 +192,8 @@ export async function getCcipDeliveryStatus(
             'CCIP fromBlock must be a non-negative safe integer.'
         )
     }
-    await assertProviderChain(provider, expectedChainId, 'Bridge destination')
+    await assertProviderChain(client, expectedChainId, 'Bridge destination')
 
-    const event = ccipExecutionInterface.getEvent('ExecutionStateChanged')
-    if (event === null) {
-        throw new Error('CCIP execution event is missing from the SDK ABI.')
-    }
     const evmChain = evmChainFromBridgeDirection(input.direction)
     const evm = getForeverMoneyEvmDeployment(evmChain)
     const evmToSubtensor = isEvmToSubtensorDirection(input.direction)
@@ -199,37 +206,49 @@ export async function getCcipDeliveryStatus(
             : foreverMoneyDeployment.subtensor.contracts
                   .ccipOffRampFromRobinhood
         : evm.contracts.ccipOffRampFromSubtensor
-    const logs = await provider.getLogs({
+    const logs = await client.getLogs({
         address: offRamp,
-        fromBlock: input.fromBlock,
+        fromBlock: BigInt(input.fromBlock),
         toBlock: 'latest',
-        topics: [event.topicHash, toBeHex(sourceSelector, 32), null, messageId],
+        event: ccipExecutionAbi[0],
+        args: { sourceChainSelector: sourceSelector, messageId },
+        strict: true,
     })
     const latest = logs.at(-1)
     if (latest === undefined) return 'waiting'
 
-    const parsed = ccipExecutionInterface.parseLog(latest)
-    const state = Number(parsed?.args.state)
+    const state = latest.args.state
     if (state === 3) return 'failure'
     if (state !== 2) return 'waiting'
     if (!evmToSubtensor) return 'success'
 
-    const receipt = await provider.getTransactionReceipt(latest.transactionHash)
+    const receipt = await receiptOrNull(client, latest.transactionHash!)
     if (receipt === null) {
         throw new ForeverMoneyError(
             'INVALID_PROVIDER_RESPONSE',
             'The CCIP execution receipt is unavailable.'
         )
     }
+    const subtensorGateways = [
+        foreverMoneyDeployment.subtensor.contracts.legacyGateway,
+        foreverMoneyDeployment.subtensor.contracts.gateway,
+    ]
     for (const log of receipt.logs) {
         if (
-            log.address.toLowerCase() !==
-            foreverMoneyDeployment.subtensor.contracts.gateway.toLowerCase()
+            !subtensorGateways.some(
+                (gateway) => log.address.toLowerCase() === gateway.toLowerCase()
+            )
         ) {
             continue
         }
         try {
-            if (alphaGatewayInterface.parseLog(log)?.name === 'Claimable') {
+            const { eventName } = decodeEventLog({
+                abi: alphaGatewayAbi,
+                data: log.data,
+                topics: log.topics,
+            })
+            // V5 can report an undelivered message without a Claimable event.
+            if (eventName === 'Claimable' || eventName === 'NotDelivered') {
                 return 'recovery'
             }
         } catch {
@@ -237,4 +256,13 @@ export async function getCcipDeliveryStatus(
         }
     }
     return 'success'
+}
+
+async function receiptOrNull(provider: PublicClient, hash: Hex) {
+    try {
+        return await provider.getTransactionReceipt({ hash })
+    } catch (error) {
+        if (error instanceof TransactionReceiptNotFoundError) return null
+        throw error
+    }
 }

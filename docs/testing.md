@@ -17,6 +17,9 @@ Fork tests start local Anvil nodes from the real Base and Subtensor chains.
 They use the SDK's production addresses and selectors unchanged; there is no
 fork manifest.
 
+Use Anvil 1.4.4, matching the pinned CI toolchain. Anvil 1.8.1 rejects the
+Subtensor fork's missing `prevrandao` header before executing contract reads.
+
 ```bash
 BASE_RPC_URL=https://... \
 SUBTENSOR_RPC_URL=https://... \
@@ -36,8 +39,9 @@ amount required for one minimum-size transfer and fees. Never use a founder,
 treasury, deployer, keeper, or user wallet.
 
 The canary script is intentionally dry-run unless the exact broadcast phrase is
-present. It refuses CI, bridge amounts above `0.001 TAO`, or source wallets with
-more than `0.05` native units.
+present. It refuses CI, bridge amounts above `0.001 TAO` from Base or `0.002 TAO`
+from Subtensor, or source wallets with more than `0.05` native units. A liquid
+Subtensor canary must use exactly `0.002 TAO` to meet the staking minimum.
 
 Read the key without putting it in shell history, then run the dry run:
 
@@ -66,3 +70,7 @@ Clear it from the shell immediately after the run with
 the received amount and any residual approval before declaring the canary
 successful. The script itself verifies source confirmation, resolves the
 canonical CCIP message ID, and polls destination delivery for up to 30 minutes.
+
+The canary uses viem and preserves the dedicated-wallet, amount, balance, and
+explicit-broadcast guards. Base-to-Subtensor canaries request **staked** delivery
+because the 0.001 TAO canary cap is below the 0.01 TAO minimum for liquid delivery.

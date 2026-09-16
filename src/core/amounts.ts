@@ -1,4 +1,4 @@
-import { MaxUint256, formatUnits, parseUnits } from 'ethers'
+import { maxUint256, formatUnits, parseUnits } from 'viem'
 import { EVM_WEI_PER_RAO } from '../chains/deployment.js'
 import { ForeverMoneyError } from './errors.js'
 
@@ -54,7 +54,7 @@ export function assertWholeRao(amountWei: bigint): void {
             'The amount cannot be negative.'
         )
     }
-    if (amountWei > MaxUint256) {
+    if (amountWei > maxUint256) {
         throw new ForeverMoneyError(
             'INVALID_TRANSACTION_PLAN',
             'The amount exceeds uint256.'
@@ -81,7 +81,7 @@ export function formatTaoAmount(amountWei: bigint): string {
             'A TAO amount cannot be negative.'
         )
     }
-    if (amountWei > MaxUint256) {
+    if (amountWei > maxUint256) {
         throw new ForeverMoneyError(
             'INVALID_TRANSACTION_PLAN',
             'The TAO amount exceeds uint256.'
@@ -93,7 +93,8 @@ export function formatTaoAmount(amountWei: bigint): string {
             'TAO amounts must resolve to a whole RAO.'
         )
     }
-    return formatUnits(amountWei, 18)
+    const formatted = formatUnits(amountWei, 18)
+    return formatted.includes('.') ? formatted : `${formatted}.0`
 }
 
 function mulDivCeil(
@@ -122,7 +123,7 @@ export function feeWithBuffer(fee: bigint): bigint {
         BASIS_POINTS + NETWORK_FEE_BUFFER_BPS,
         BASIS_POINTS
     )
-    if (buffered > MaxUint256) {
+    if (buffered > maxUint256) {
         throw new ForeverMoneyError(
             'INVALID_TRANSACTION_PLAN',
             'The buffered network fee exceeds uint256.'
@@ -149,7 +150,7 @@ export function gasLimitWithBuffer(gasLimit: bigint): bigint {
         BASIS_POINTS + GAS_LIMIT_BUFFER_BPS,
         BASIS_POINTS
     )
-    if (buffered > MaxUint256) {
+    if (buffered > maxUint256) {
         throw new ForeverMoneyError(
             'INVALID_TRANSACTION_PLAN',
             'The buffered gas limit exceeds uint256.'

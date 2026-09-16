@@ -8,7 +8,7 @@ published minor version.
 ## Reporting a vulnerability
 
 Do not open a public issue for a suspected vulnerability. Submit a private
-[GitHub security advisory](https://github.com/SN98-ForeverMoney/forevermoney-sdk/security/advisories/new)
+[GitHub security advisory](https://github.com/ForeverMoney-Ai/forevermoney-sdk/security/advisories/new)
 with the affected version, impact, reproduction steps, and any proposed fix.
 
 Never include a private key, seed phrase, authenticated RPC URL, or user data in

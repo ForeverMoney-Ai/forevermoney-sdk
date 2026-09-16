@@ -1,4 +1,4 @@
-import { getAddress } from 'ethers'
+import { getAddress } from 'viem'
 
 export const BASE_CHAIN_ID = 8453
 export const ROBINHOOD_CHAIN_ID = 4663
@@ -8,7 +8,8 @@ export const ROBINHOOD_CCIP_SELECTOR = 6_180_753_054_346_818_345n
 export const SUBTENSOR_CCIP_SELECTOR = 2_135_107_236_357_186_872n
 export const RAO_PER_TAO = 1_000_000_000n
 export const EVM_WEI_PER_RAO = 1_000_000_000n
-export const FOREVERMONEY_DEPLOYMENT_VERSION = '1.1.0' as const
+export const SN80_NETUID = 80n
+export const FOREVERMONEY_DEPLOYMENT_VERSION = '1.2.0' as const
 
 export const foreverMoneyDeployment = Object.freeze({
     version: FOREVERMONEY_DEPLOYMENT_VERSION,
@@ -18,9 +19,15 @@ export const foreverMoneyDeployment = Object.freeze({
         chainId: BASE_CHAIN_ID,
         ccipSelector: BASE_CCIP_SELECTOR,
         contracts: Object.freeze({
-            gateway: getAddress('0x5EF3d7D19e4b233a1A169DA0d5CB02ec6b160a2C'),
+            gateway: getAddress('0x1da2415229b614C787e145D1D7346eb496319C52'),
+            legacyGateway: getAddress(
+                '0x5EF3d7D19e4b233a1A169DA0d5CB02ec6b160a2C'
+            ),
             wrappedTao: getAddress(
                 '0xf3081494b87e8d5fb7960f066e931d1d0e6e3d67'
+            ),
+            wrappedSn80: getAddress(
+                '0x6f63d869011f95274498023b4abfc00b30c34378'
             ),
             ccipRouter: getAddress(
                 '0x881e3A65B4d4a04dD529061dd0071cf975F58bCD'
@@ -47,7 +54,10 @@ export const foreverMoneyDeployment = Object.freeze({
         chainId: ROBINHOOD_CHAIN_ID,
         ccipSelector: ROBINHOOD_CCIP_SELECTOR,
         contracts: Object.freeze({
-            gateway: getAddress('0x53Dcc4FE04193e489BE537F722F65317DB1E65d8'),
+            gateway: getAddress('0xf27fdA637131E25B2A1b4865ED9597d881980c7E'),
+            legacyGateway: getAddress(
+                '0x53Dcc4FE04193e489BE537F722F65317DB1E65d8'
+            ),
             wrappedTao: getAddress(
                 '0xf3081494B87e8D5fb7960f066E931D1D0e6E3d67'
             ),
@@ -63,12 +73,18 @@ export const foreverMoneyDeployment = Object.freeze({
         chainId: SUBTENSOR_CHAIN_ID,
         ccipSelector: SUBTENSOR_CCIP_SELECTOR,
         contracts: Object.freeze({
-            gateway: getAddress('0x998f20Fea90bF7792774dECc7f994716442B1705'),
+            gateway: getAddress('0xcd0C6d98D0A126B1c113d15b4c28F38321437787'),
+            legacyGateway: getAddress(
+                '0x998f20Fea90bF7792774dECc7f994716442B1705'
+            ),
             alphaVault: getAddress(
                 '0x11837459896D96F821a8D88eC93a3C8D152033D4'
             ),
             wrappedTao: getAddress(
                 '0xC5b6C1632d34901239396F5E1BDe54B342900256'
+            ),
+            wrappedSn80: getAddress(
+                '0xfD628dE75EF96f0A5C59659159C6cA81E0DC2222'
             ),
             ccipRouter: getAddress(
                 '0xD941fBEcD2b971d0F54b4C34286C95faB52B60B8'

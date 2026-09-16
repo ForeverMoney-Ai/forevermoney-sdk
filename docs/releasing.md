@@ -9,14 +9,15 @@ the packed npm artifact have both been verified.
 2. Create the `@forevermoney` npm organization and grant the maintainers release
    access.
 3. On npm, configure a GitHub Actions trusted publisher for
-   `SN98-ForeverMoney/forevermoney-sdk`, workflow `publish.yml`, environment
+   `ForeverMoney-Ai/forevermoney-sdk`, workflow `publish.yml`, environment
    `npm`.
 4. In GitHub, create the `npm` environment and restrict deployment to protected
    tags matching `v*`.
 5. Enable GitHub private vulnerability reporting and protect the default branch
    with the `Verify (Node 22)` and `Verify (Node 24)` checks.
-6. Add `BASE_RPC_URL` and `SUBTENSOR_RPC_URL` secrets to the `production-fork`
-   environment.
+6. Optionally add `BASE_RPC_URL` and `SUBTENSOR_RPC_URL` secrets to the
+   `production-fork` environment. The workflow otherwise uses the public Base
+   and Subtensor RPC endpoints for its read-only production checks.
 
 The publish workflow uses npm trusted publishing. Do not add a long-lived npm
 write token to the repository.

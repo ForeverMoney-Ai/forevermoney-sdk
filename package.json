@@ -1,15 +1,15 @@
 {
     "name": "@forevermoney/sdk",
-    "version": "0.1.0",
+    "version": "0.4.0",
     "description": "Typed bridge and vault integration SDK for ForeverMoney",
     "license": "MIT",
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/SN98-ForeverMoney/forevermoney-sdk.git"
+        "url": "git+https://github.com/ForeverMoney-Ai/forevermoney-sdk.git"
     },
-    "homepage": "https://github.com/SN98-ForeverMoney/forevermoney-sdk#readme",
+    "homepage": "https://github.com/ForeverMoney-Ai/forevermoney-sdk#readme",
     "bugs": {
-        "url": "https://github.com/SN98-ForeverMoney/forevermoney-sdk/issues"
+        "url": "https://github.com/ForeverMoney-Ai/forevermoney-sdk/issues"
     },
     "keywords": [
         "bittensor",
@@ -52,11 +52,6 @@
         "canary": "npm run build && node scripts/live-canary.mjs",
         "prepack": "npm run verify"
     },
-    "dependencies": {
-        "@polkadot/util": "^13.5.9",
-        "@polkadot/util-crypto": "^13.5.9",
-        "ethers": "^6.12.2"
-    },
     "devDependencies": {
         "@types/node": "^22.4.1",
         "fast-check": "^4.9.0",
@@ -70,5 +65,9 @@
     },
     "publishConfig": {
         "access": "public"
+    },
+    "dependencies": {
+        "@polkadot-api/substrate-bindings": "0.21.1",
+        "viem": "2.56.3"
     }
 }

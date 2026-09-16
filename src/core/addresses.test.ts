@@ -1,4 +1,6 @@
-import { encodeAddress } from '@polkadot/util-crypto'
+import { AccountId } from '@polkadot-api/substrate-bindings'
+const encodeAddress = (key: Uint8Array, prefix: number) =>
+    AccountId(prefix).dec(key)
 import { describe, expect, it } from 'vitest'
 import {
     evmToMirrorSS58,
@@ -22,6 +24,30 @@ describe('addresses', () => {
                 evmToMirrorSS58('0x1111111111111111111111111111111111111111')
             )
         ).toBeTruthy()
+    })
+
+    it.each([
+        '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+        '0xABCDEFABCDEFABCDEFABCDEFABCDEFABCDEFABCD',
+        '0xABcdEFABcdEFabcdEfAbCdefabcdeFABcDEFabCD',
+    ])('preserves address normalization for %s', (address) => {
+        expect(normalizeEvmAddress(address)).toBe(
+            '0xABcdEFABcdEFabcdEfAbCdefabcdeFABcDEFabCD'
+        )
+        expect(evmToMirrorSS58(address)).toBe(
+            evmToMirrorSS58('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd')
+        )
+    })
+
+    it.each([
+        '0xAbCdEfABCDEFabcdefABCDEFabcdefabcdefabcd',
+        '0x0000000000000000000000000000000000000000',
+        '0xABCDEF',
+        '0xGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG',
+    ])('rejects an invalid address or checksum: %s', (address) => {
+        expect(() => normalizeEvmAddress(address)).toThrow(
+            'non-zero EVM address'
+        )
     })
 
     it('rejects zero addresses, raw keys, malformed SS58, and other prefixes', () => {

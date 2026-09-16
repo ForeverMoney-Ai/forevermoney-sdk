@@ -8,8 +8,14 @@ export {
     buildSubtensorToEvmPlan,
     MIN_LIQUID_BASE_TO_SUBTENSOR_WEI,
     MIN_LIQUID_EVM_TO_SUBTENSOR_WEI,
+    MAX_PARTNER_FEE_BPS,
+    MIN_LIQUID_SUBTENSOR_TO_EVM_WEI,
+    partnerFeeCut,
+    partnerFeeTaoTopUp,
     type BaseToSubtensorRequest,
+    type BridgeAsset,
     type BridgePreparation,
+    type PartnerFee,
     type BuildBaseToSubtensorPlanRequest,
     type BuildEvmToSubtensorPlanRequest,
     type BuildSubtensorToBasePlanRequest,
@@ -57,6 +63,8 @@ export {
     type HttpTransportOptions,
     type RpcRequest,
     type RpcTransport,
+    type TrackingProvider,
+    type LegacyRpcProvider,
 } from './core/transport.js'
 export * from './core/transactions.js'
 export {
