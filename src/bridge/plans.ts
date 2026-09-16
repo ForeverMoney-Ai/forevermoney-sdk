@@ -76,6 +76,11 @@ export interface EvmToSubtensorRequest {
     readonly delivery: SubtensorDelivery
 }
 export interface SubtensorToEvmRequest {
+    /** Minimum destination-token output in 18-decimal wei, after partner fees.
+     * Defaults to amountWei. Must be positive and no greater than amountWei.
+     * Callers choose their tolerance explicitly, including staking rounding dust.
+     */
+    readonly minAmountOutWei?: bigint
     readonly evmChain: ForeverMoneyEvmChain
     readonly asset?: BridgeAsset
     readonly partnerFee?: PartnerFee
@@ -240,6 +245,17 @@ function stakePullsFor(
         )
     }
     return resolveStakePulls(input.stakePulls, amountRao)
+}
+function minimumSubtensorOutput(input: SubtensorToEvmRequest): bigint {
+    const minimum = input.minAmountOutWei ?? input.amountWei
+    assertNonNegativeAmount(minimum, 'Minimum output')
+    if (minimum === 0n || minimum > input.amountWei) {
+        throw new ForeverMoneyError(
+            'INVALID_TRANSACTION_PLAN',
+            'Minimum output must be positive and no greater than the input amount.'
+        )
+    }
+    return minimum
 }
 function assertDelivery(value: unknown): asserts value is SubtensorDelivery {
     if (value !== 'liquid' && value !== 'staked') {
@@ -632,6 +648,7 @@ export function buildSubtensorToEvmPlan(
     assertAssetMode(input.asset, input.source)
     const netuid = sourceNetuid(input)
     assertSubtensorToEvmAmount(input.amountWei, input.source)
+    const minAmountOutWei = minimumSubtensorOutput(input)
     assertNonNegativeAmount(input.exactNetworkFeeWei, 'Network fee')
     const { subtensor } = foreverMoneyDeployment
     const evm = getForeverMoneyEvmDeployment(input.evmChain)
@@ -706,7 +723,7 @@ export function buildSubtensorToEvmPlan(
                 recipient,
                 taoAmount,
                 stakedAlphaRao,
-                input.amountWei,
+                minAmountOutWei,
                 partnerFee,
                 pulls
             ),
@@ -826,6 +843,7 @@ export async function prepareSubtensorToEvm(
     assertAssetMode(input.asset, input.source)
     const netuid = sourceNetuid(input)
     assertSubtensorToEvmAmount(input.amountWei, input.source)
+    const minAmountOutWei = minimumSubtensorOutput(input)
     const { subtensor } = foreverMoneyDeployment
     const evm = getForeverMoneyEvmDeployment(input.evmChain)
     const partnerFee = resolvePartnerFee(
@@ -889,7 +907,7 @@ export async function prepareSubtensorToEvm(
                 recipient,
                 taoAmount,
                 stakedAlphaRao,
-                input.amountWei,
+                minAmountOutWei,
                 partnerFee,
                 stakePullsFor(input, stakedAlphaRao)
             ),

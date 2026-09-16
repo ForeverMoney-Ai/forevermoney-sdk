@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.1 — 2026-09-16
+
+- Added optional `minAmountOutWei` to Subtensor-to-EVM bridge requests. Callers can explicitly bound output slippage, including staking rounding dust. Defaults to the input amount; rejects zero, negative, non-bigint, and above-input minima before RPC calls. The same minimum is used for gas estimation and final calldata, for single- and multi-validator routes with or without partner fees.
+
 ## 0.5.0 — 2026-09-16
 
 - Staked bridges from Subtensor can pull from several validators. Pass

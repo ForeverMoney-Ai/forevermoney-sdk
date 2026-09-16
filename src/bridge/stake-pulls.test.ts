@@ -29,6 +29,53 @@ const decode = (data: string) =>
     decodeFunctionData({ abi: alpha, data: data as Hex })
 
 describe('staked bridges that pull from several validators', () => {
+    it.each([false, true])(
+        'passes explicit minimum output with partner fee=%s',
+        (withFee) => {
+            const minimum = amountWei - 4n * EVM_WEI_PER_RAO
+            for (const stakePulls of [undefined, pulls]) {
+                const plan = buildSubtensorToBasePlan({
+                    sender,
+                    recipient,
+                    amountWei,
+                    minAmountOutWei: minimum,
+                    source: 'staked',
+                    netuid: 80n,
+                    asset: 'sn80',
+                    ...(stakePulls ? { stakePulls } : {}),
+                    ...(withFee
+                        ? { partnerFee: { recipient: partner, bps: 100 } }
+                        : {}),
+                    stakingAllowanceRao: amountRao * 2n,
+                    exactNetworkFeeWei: 100n,
+                })
+                const call = decode(plan.steps[0]!.transaction.data)
+                expect(call.args?.[5]).toBe(minimum)
+            }
+        }
+    )
+
+    it.each([0n, -1n, amountWei + 1n, 1 as unknown as bigint])(
+        'rejects invalid minimum %s before RPC calls',
+        async (minAmountOutWei) => {
+            const readContract = vi.fn()
+            await expect(
+                prepareSubtensorToEvm(
+                    { readContract } as unknown as PublicClient,
+                    {
+                        evmChain: 'base',
+                        sender,
+                        recipient,
+                        amountWei,
+                        source: 'staked',
+                        netuid: 0n,
+                        minAmountOutWei,
+                    }
+                )
+            ).rejects.toThrow()
+            expect(readContract).not.toHaveBeenCalled()
+        }
+    )
     it('encodes bridgeOutFromValidators with the pulls and a 1:1 minimum output', () => {
         const plan = buildSubtensorToBasePlan({
             sender,
@@ -171,6 +218,9 @@ describe('staked bridges that pull from several validators', () => {
         )
         const estimateGas = vi.fn(async ({ data }) => {
             expect(decode(data).functionName).toBe('bridgeOutFromValidators')
+            expect(decode(data).args?.[5]).toBe(
+                amountWei - 4n * EVM_WEI_PER_RAO
+            )
             return 100n
         })
         const result = await prepareSubtensorToEvm(
@@ -183,6 +233,7 @@ describe('staked bridges that pull from several validators', () => {
                 source: 'staked',
                 netuid: 0n,
                 stakePulls: pulls,
+                minAmountOutWei: amountWei - 4n * EVM_WEI_PER_RAO,
             }
         )
         expect(estimateGas).toHaveBeenCalledOnce()
@@ -190,5 +241,8 @@ describe('staked bridges that pull from several validators', () => {
         expect(
             decode(result.plan.steps[0]!.transaction.data).functionName
         ).toBe('bridgeOutFromValidators')
+        expect(decode(result.plan.steps[0]!.transaction.data).args?.[5]).toBe(
+            amountWei - 4n * EVM_WEI_PER_RAO
+        )
     })
 })

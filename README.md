@@ -438,3 +438,7 @@ testing are documented in [`docs/testing.md`](./docs/testing.md).
 
 Security reports should follow [`SECURITY.md`](./SECURITY.md). Maintainer release
 steps are in [`docs/releasing.md`](./docs/releasing.md).
+
+### Minimum bridge output
+
+Subtensor-to-EVM builders and preparation methods accept optional `minAmountOutWei` (destination token units, 18 decimals, after partner fees). It must be positive and no greater than `amountWei`; omission preserves the exact-output default. Choose the minimum explicitly to cover your acceptable slippage or native staking rounding dust. The SDK uses the same value for gas estimation and final transaction calldata. For example, `minAmountOutWei: amountWei - 4n * EVM_WEI_PER_RAO` allows four native RAO of dust when the amount exceeds that budget. This does not change the input amount or approval amount.
