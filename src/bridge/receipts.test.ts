@@ -20,7 +20,8 @@ describe('canonical bridge receipt parsing', () => {
             logs: [
                 {
                     address:
-                        foreverMoneyDeployment.base.contracts.legacyGateway,
+                        foreverMoneyDeployment.base.contracts
+                            .legacyGateways[0]!,
                     ...event,
                 },
             ],
@@ -48,7 +49,7 @@ describe('canonical bridge receipt parsing', () => {
                     {
                         address:
                             foreverMoneyDeployment.subtensor.contracts
-                                .legacyGateway,
+                                .legacyGateways[0]!,
                         ...bridgeEvent,
                     },
                 ],
@@ -70,7 +71,7 @@ describe('canonical bridge receipt parsing', () => {
                     {
                         address:
                             foreverMoneyDeployment.robinhood.contracts
-                                .legacyGateway,
+                                .legacyGateways[0]!,
                         ...toSubtensor,
                     },
                 ],
@@ -91,7 +92,7 @@ describe('canonical bridge receipt parsing', () => {
                     {
                         address:
                             foreverMoneyDeployment.subtensor.contracts
-                                .legacyGateway,
+                                .legacyGateways[0]!,
                         ...toRobinhood,
                     },
                 ],
@@ -103,7 +104,7 @@ describe('canonical bridge receipt parsing', () => {
                     {
                         address:
                             foreverMoneyDeployment.subtensor.contracts
-                                .legacyGateway,
+                                .legacyGateways[0]!,
                         ...toRobinhood,
                     },
                 ],

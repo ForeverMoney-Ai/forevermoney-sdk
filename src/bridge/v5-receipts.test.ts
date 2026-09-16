@@ -21,7 +21,7 @@ describe('V5 gateway receipt tracking', () => {
         ])
         for (const address of [
             base.contracts.gateway,
-            base.contracts.legacyGateway,
+            base.contracts.legacyGateways[0]!,
         ]) {
             expect(
                 bridgeMessageIdFromReceipt('base-to-subtensor', {

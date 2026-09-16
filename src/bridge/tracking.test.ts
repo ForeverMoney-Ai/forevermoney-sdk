@@ -42,7 +42,7 @@ function executionLog(state: number) {
     return { ...encoded, transactionHash, args: { state } }
 }
 function claimableLog(
-    address = foreverMoneyDeployment.subtensor.contracts.legacyGateway
+    address = foreverMoneyDeployment.subtensor.contracts.legacyGateways[0]!
 ) {
     const event = alphaGatewayAbi.find(
         (item) => item.type === 'event' && item.name === 'Claimable'
@@ -57,7 +57,7 @@ function claimableLog(
     return { address, ...encoded }
 }
 function notDeliveredLog(
-    address = foreverMoneyDeployment.subtensor.contracts.legacyGateway
+    address = foreverMoneyDeployment.subtensor.contracts.legacyGateways[0]!
 ) {
     const encoded = eventLog(alphaGatewayAbi, 'NotDelivered', [
         foreverMoneyDeployment.base.ccipSelector,
@@ -80,7 +80,7 @@ function bridgeSourceLog() {
         messageId,
     ])
     return {
-        address: foreverMoneyDeployment.base.contracts.legacyGateway,
+        address: foreverMoneyDeployment.base.contracts.legacyGateways[0]!,
         ...encoded,
     }
 }

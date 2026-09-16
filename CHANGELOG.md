@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased (0.5.0)
+
+- Staked bridges from Subtensor can pull from several validators. Pass
+  `stakePulls: [{ hotkey, amountRao }]` (1–16 entries, unique hotkeys, summing
+  to the bridged amount) and the plan calls the V5.1 gateway's
+  `bridgeOutFromValidators` (or `…WithFee`), which re-delegates every pull to
+  the token's canonical validator before depositing. Without `stakePulls` the
+  plan keeps the single-validator `bridgeOut` call. With a partner fee the cut
+  is pulled from `stakePulls[0]` on top, so that position must hold
+  `amountRao + cut`. Added `StakePull`, `MAX_STAKE_PULLS`, and the
+  `bridgeOutFromValidators*`, `minStakeRequired`, `MAX_STAKE_SOURCES` and
+  `GATEWAY_COLDKEY` ABI entries.
+- `contracts.legacyGateway` is now `contracts.legacyGateways`, a list of retired
+  gateways (oldest first) used for receipt and delivery tracking. The Subtensor
+  gateway address will move to the V5.1 deployment in this release.
+
 ## 0.4.0 — 2026-09-16
 
 - Added `asset: 'sn80'` to the bridge builders and preparation methods for Base

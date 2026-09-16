@@ -58,13 +58,13 @@ export function bridgeMessageIdFromReceipt(
     const evmToSubtensor = isEvmToSubtensorDirection(direction)
     const [addresses, contractAbi, eventName] = evmToSubtensor
         ? [
-              [evm.contracts.legacyGateway, evm.contracts.gateway],
+              [...evm.contracts.legacyGateways, evm.contracts.gateway],
               spokeGatewayAbi,
               'BridgedToFinney',
           ]
         : [
               [
-                  foreverMoneyDeployment.subtensor.contracts.legacyGateway,
+                  ...foreverMoneyDeployment.subtensor.contracts.legacyGateways,
                   foreverMoneyDeployment.subtensor.contracts.gateway,
               ],
               alphaGatewayAbi,

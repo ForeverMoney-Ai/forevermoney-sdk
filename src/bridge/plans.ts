@@ -28,7 +28,10 @@ import {
     type TransactionPlan,
     type TransactionStep,
 } from '../core/plans.js'
-import { assertNonNegativeAmount } from '../core/validation.js'
+import {
+    assertNonNegativeAmount,
+    normalizeBytes32,
+} from '../core/validation.js'
 const erc20Abi = parseAbi(ERC20_ABI)
 const spokeAbi = parseAbi(SPOKE_GATEWAY_ABI)
 const alphaAbi = parseAbi(ALPHA_GATEWAY_ABI)
@@ -51,6 +54,18 @@ export interface PartnerFee {
     readonly bps: number
 }
 export const MAX_PARTNER_FEE_BPS = 10_000
+/**
+ * One staked position to pull from when bridging staked alpha from Subtensor:
+ * the validator hotkey the caller's stake sits on and how much of it to take.
+ * The gateway re-delegates every pull to the token's canonical validator
+ * before depositing, so stake with any validator can be bridged.
+ */
+export interface StakePull {
+    readonly hotkey: string
+    readonly amountRao: bigint
+}
+/** Gateway limit on positions per bridge (`AlphaGateway.MAX_STAKE_SOURCES`). */
+export const MAX_STAKE_PULLS = 16
 export interface EvmToSubtensorRequest {
     readonly evmChain: ForeverMoneyEvmChain
     readonly asset?: BridgeAsset
@@ -69,6 +84,13 @@ export interface SubtensorToEvmRequest {
     readonly amountWei: bigint
     readonly source: SubtensorSource
     readonly netuid?: bigint
+    /**
+     * For a staked source: the positions to pull, summing to `amountWei` in
+     * RAO. Omit when the stake already sits on the token's canonical validator.
+     * With a partner fee, the cut is pulled from `stakePulls[0]` on top, so that
+     * position must hold `amountRao + cut`.
+     */
+    readonly stakePulls?: readonly StakePull[]
 }
 export type BaseToSubtensorRequest = Omit<EvmToSubtensorRequest, 'evmChain'>
 export type SubtensorToBaseRequest = Omit<SubtensorToEvmRequest, 'evmChain'>
@@ -204,6 +226,20 @@ function sourceNetuid(input: SubtensorToEvmRequest): bigint | undefined {
     }
     return netuid
 }
+/** Resolved pulls for a staked source that names them; undefined otherwise. */
+function stakePullsFor(
+    input: SubtensorToEvmRequest,
+    amountRao: bigint
+): ResolvedStakePull[] | undefined {
+    if (input.stakePulls === undefined) return undefined
+    if (input.source !== 'staked') {
+        throw new ForeverMoneyError(
+            'INVALID_TRANSACTION_PLAN',
+            'Stake pulls are only valid for a staked source.'
+        )
+    }
+    return resolveStakePulls(input.stakePulls, amountRao)
+}
 function assertDelivery(value: unknown): asserts value is SubtensorDelivery {
     if (value !== 'liquid' && value !== 'staked') {
         throw new ForeverMoneyError(
@@ -328,6 +364,60 @@ function encodeSpokeBridge(
               args: [token, amountWei, exit, 0n, fee],
           })
 }
+type ResolvedStakePull = { validator: `0x${string}`; alphaRao: bigint }
+/**
+ * Validate the caller's pull list against the gateway's rules: 1..16 entries,
+ * unique bytes32 hotkeys, positive amounts, summing to the bridged alpha.
+ */
+function resolveStakePulls(
+    pulls: readonly StakePull[],
+    amountRao: bigint
+): ResolvedStakePull[] {
+    if (pulls.length === 0 || pulls.length > MAX_STAKE_PULLS) {
+        throw new ForeverMoneyError(
+            'INVALID_TRANSACTION_PLAN',
+            `Between 1 and ${MAX_STAKE_PULLS} stake pulls are required.`,
+            { count: pulls.length }
+        )
+    }
+    const seen = new Set<string>()
+    let total = 0n
+    const resolved = pulls.map((pull) => {
+        const validator = normalizeBytes32(pull.hotkey, 'Stake pull hotkey')
+        if (validator === `0x${'0'.repeat(64)}`) {
+            throw new ForeverMoneyError(
+                'INVALID_TRANSACTION_PLAN',
+                'Stake pull hotkey must not be zero.'
+            )
+        }
+        const key = validator.toLowerCase()
+        if (seen.has(key)) {
+            throw new ForeverMoneyError(
+                'INVALID_TRANSACTION_PLAN',
+                'Stake pulls must not repeat a hotkey.',
+                { hotkey: validator }
+            )
+        }
+        seen.add(key)
+        if (typeof pull.amountRao !== 'bigint' || pull.amountRao <= 0n) {
+            throw new ForeverMoneyError(
+                'INVALID_TRANSACTION_PLAN',
+                'Each stake pull must take a positive amount of RAO.',
+                { hotkey: validator }
+            )
+        }
+        total += pull.amountRao
+        return { validator, alphaRao: pull.amountRao }
+    })
+    if (total !== amountRao) {
+        throw new ForeverMoneyError(
+            'INVALID_TRANSACTION_PLAN',
+            'Stake pulls must sum to the bridged amount.',
+            { pulledRao: total.toString(), amountRao: amountRao.toString() }
+        )
+    }
+    return resolved
+}
 function encodeHubBridge(
     destSelector: bigint,
     token: `0x${string}`,
@@ -335,8 +425,30 @@ function encodeHubBridge(
     taoAmount: bigint,
     stakedAlphaRao: bigint,
     minTokenOut: bigint,
-    fee: ResolvedPartnerFee
+    fee: ResolvedPartnerFee,
+    pulls?: ResolvedStakePull[]
 ): `0x${string}` {
+    if (pulls !== undefined) {
+        const args = [
+            destSelector,
+            token,
+            recipient,
+            taoAmount,
+            pulls,
+            minTokenOut,
+        ] as const
+        return fee.bps === 0
+            ? encodeFunctionData({
+                  abi: alphaAbi,
+                  functionName: 'bridgeOutFromValidators',
+                  args,
+              })
+            : encodeFunctionData({
+                  abi: alphaAbi,
+                  functionName: 'bridgeOutFromValidatorsWithFee',
+                  args: [...args, fee],
+              })
+    }
     const args = [
         destSelector,
         token,
@@ -577,6 +689,7 @@ export function buildSubtensorToEvmPlan(
     }
     const taoAmount = input.source === 'liquid' ? input.amountWei : 0n
     const stakedAlphaRao = input.source === 'staked' ? amountRao : 0n
+    const pulls = stakePullsFor(input, amountRao)
     const value = taoAmount + taoTopUp + feeWithBuffer(input.exactNetworkFeeWei)
     assertNonNegativeAmount(value, 'Transaction value')
     steps.push(
@@ -593,7 +706,8 @@ export function buildSubtensorToEvmPlan(
                 taoAmount,
                 stakedAlphaRao,
                 input.amountWei,
-                partnerFee
+                partnerFee,
+                pulls
             ),
             value,
             input.estimatedBridgeGas === undefined
@@ -775,7 +889,8 @@ export async function prepareSubtensorToEvm(
                 taoAmount,
                 stakedAlphaRao,
                 input.amountWei,
-                partnerFee
+                partnerFee,
+                stakePullsFor(input, stakedAlphaRao)
             ),
             value,
         })

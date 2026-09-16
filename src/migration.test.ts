@@ -42,8 +42,9 @@ const chains = ['base', 'robinhood', 'subtensor'] as const
 function withV5Gateways(value: unknown): unknown {
     let text = JSON.stringify(value)
     for (const chain of chains) {
-        const { gateway, legacyGateway } =
+        const { gateway, legacyGateways } =
             foreverMoneyDeployment[chain].contracts
+        const legacyGateway = legacyGateways[0]!
         text = text
             .replaceAll(legacyGateway, gateway)
             .replaceAll(
@@ -71,8 +72,9 @@ describe('dependency and V5 gateway migration', () => {
 
     it('uses new gateways and keeps the old ones only for tracking', () => {
         for (const chain of chains) {
-            const { gateway, legacyGateway } =
+            const { gateway, legacyGateways } =
                 foreverMoneyDeployment[chain].contracts
+            const legacyGateway = legacyGateways[0]!
             expect(gateway.toLowerCase()).not.toBe(legacyGateway.toLowerCase())
         }
     })

@@ -230,7 +230,7 @@ export async function getCcipDeliveryStatus(
         )
     }
     const subtensorGateways = [
-        foreverMoneyDeployment.subtensor.contracts.legacyGateway,
+        ...foreverMoneyDeployment.subtensor.contracts.legacyGateways,
         foreverMoneyDeployment.subtensor.contracts.gateway,
     ]
     for (const log of receipt.logs) {

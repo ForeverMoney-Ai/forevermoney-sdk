@@ -33,19 +33,19 @@ describe.skipIf(baseForkRpcUrl === undefined)('Base production fork', () => {
         expect(await client.getChainId()).toBe(8453)
         expect(
             await client.getCode({
-                address: base.contracts.legacyGateway,
+                address: base.contracts.legacyGateways[0]!,
                 blockNumber: BigInt(base.deploymentBlock - 1),
             })
         ).toBeUndefined()
         expect(
             await client.getCode({
-                address: base.contracts.legacyGateway,
+                address: base.contracts.legacyGateways[0]!,
                 blockNumber: BigInt(base.deploymentBlock),
             })
         ).toBeTruthy()
         for (const address of [
             base.contracts.gateway,
-            base.contracts.legacyGateway,
+            base.contracts.legacyGateways[0]!,
             base.contracts.wrappedTao,
             base.contracts.wrappedSn80,
             base.contracts.vaultFactory,
@@ -134,7 +134,7 @@ describe.skipIf(subtensorForkRpcUrl === undefined)(
             expect(await client.getChainId()).toBe(964)
             for (const address of [
                 subtensor.contracts.gateway,
-                subtensor.contracts.legacyGateway,
+                subtensor.contracts.legacyGateways[0]!,
                 subtensor.contracts.alphaVault,
                 subtensor.contracts.wrappedTao,
                 subtensor.contracts.wrappedSn80,
@@ -154,6 +154,12 @@ describe.skipIf(subtensorForkRpcUrl === undefined)(
             ).toBe(true)
             expect(await gateway.read.bridgeFeeBps()).toBe(0)
             expect(await gateway.read.maxIntegratorFeeBps()).toBeGreaterThan(0)
+            // V5.1: multi-validator staked input.
+            expect(await gateway.read.MAX_STAKE_SOURCES()).toBe(16n)
+            expect(await gateway.read.minStakeRequired()).toBeGreaterThan(0n)
+            expect(await gateway.read.GATEWAY_COLDKEY()).not.toBe(
+                `0x${'0'.repeat(64)}`
+            )
             const [hubFee, nativeTopUp, alphaTopUp, hubCrossing] =
                 await gateway.read.quoteBridgeOutWithFee([
                     base.ccipSelector,

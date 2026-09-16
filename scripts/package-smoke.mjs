@@ -15,6 +15,7 @@ const expectedExports = [
     'ForeverMoneyError',
     'GAS_LIMIT_BUFFER_BPS',
     'MAX_PARTNER_FEE_BPS',
+    'MAX_STAKE_PULLS',
     'MIN_LIQUID_BASE_TO_SUBTENSOR_WEI',
     'MIN_LIQUID_EVM_TO_SUBTENSOR_WEI',
     'MIN_LIQUID_SUBTENSOR_TO_EVM_WEI',

@@ -11,8 +11,8 @@ is transferred 1:1 and the network fee is charged separately, so the SDK fixes
 the contract's minimum destination output to the bridged principal instead of
 exposing configurable slippage.
 
-Bridge plans use the V5 gateways in `contracts.gateway`. The previous gateways
-remain under `contracts.legacyGateway` only so receipts and deliveries of
+Bridge plans use the current gateways in `contracts.gateway`. Retired gateways
+remain under `contracts.legacyGateways` only so receipts and deliveries of
 bridges sent through them can still be tracked. Plans call the zero-fee V5
 entrypoints unless a `partnerFee` is passed (see "Charge a partner fee").
 
@@ -171,6 +171,35 @@ Canonical SN80 token addresses are exported as `contracts.wrappedSn80`:
 
 The Base address `0x2292233d308188fcb3775f63a20f31dff6db02d9` is the SN80/TAO
 liquidity pool; bridge calls use the token addresses above.
+
+## Bridge stake held with several validators
+
+Staked alpha on Finney is keyed by validator hotkey, and a bridge can only pull
+from the positions you name. Pass `stakePulls` to draw from more than one
+validator; the gateway re-delegates each pull to the token's canonical
+validator and deposits the total, so stake with any validator can be bridged.
+
+```ts
+const prepared = await foreverMoney.bridge.prepareSubtensorToBase({
+    sender: '0x...',
+    recipient: '0x...',
+    amountWei: 140n * 10n ** 18n,
+    source: 'staked',
+    netuid: 0n,
+    stakePulls: [
+        { hotkey: '0x…validatorA', amountRao: 100_000_000_000n },
+        { hotkey: '0x…validatorB', amountRao: 40_000_000_000n },
+    ],
+})
+```
+
+Rules the SDK checks before building a plan: 1 to `MAX_STAKE_PULLS` (16)
+entries, unique non-zero hotkeys, positive amounts, and a sum equal to the
+bridged amount in RAO. One staking approval on the netuid covers every pull.
+Nothing on-chain enforces the runtime's minimum stake on what you leave behind
+(`minStakeRequired()`, 0.02 TAO-equivalent), so size each pull to either drain
+the position or leave at least that much. With a partner fee the cut is pulled
+from `stakePulls[0]` on top of its amount.
 
 ## Charge a partner fee
 
