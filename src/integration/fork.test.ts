@@ -61,9 +61,15 @@ describe.skipIf(baseForkRpcUrl === undefined)('Base production fork', () => {
         expect(await gateway.read.BITTENSOR_SELECTOR()).toBe(
             subtensor.ccipSelector
         )
-        expect((await gateway.read.SUBTENSOR_GATEWAY()).toLowerCase()).toBe(
-            subtensor.contracts.gateway.toLowerCase()
-        )
+        // The spoke's hub pointer is immutable, so after a hub-only redeploy it
+        // still names the previous hub; deliveries via any known hub are tracked.
+        expect(
+            [subtensor.contracts.gateway, ...subtensor.contracts.legacyGateways]
+                .map((address) => address.toLowerCase())
+                .includes(
+                    (await gateway.read.SUBTENSOR_GATEWAY()).toLowerCase()
+                )
+        ).toBe(true)
         expect(await gateway.read.bridgeFeeBps()).toBe(0)
         expect(await gateway.read.maxIntegratorFeeBps()).toBeGreaterThan(0)
         const [feeWithPartner, cut, crossing] =

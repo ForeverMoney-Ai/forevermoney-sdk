@@ -13,7 +13,10 @@ exposing configurable slippage.
 
 Bridge plans use the current gateways in `contracts.gateway`. Retired gateways
 remain under `contracts.legacyGateways` only so receipts and deliveries of
-bridges sent through them can still be tracked. Plans call the zero-fee V5
+bridges sent through them can still be tracked. A spoke gateway's Subtensor
+hub pointer is immutable, so after a hub-only redeploy EVM-to-Subtensor
+deliveries still arrive through the previous hub; the SDK watches every known
+hub, so tracking and recovery detection are unaffected. Plans call the zero-fee V5
 entrypoints unless a `partnerFee` is passed (see "Charge a partner fee").
 
 ## Install
