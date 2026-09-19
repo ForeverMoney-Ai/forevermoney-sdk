@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.3 — 2026-09-19
+
+- Increased EVM-to-Subtensor CCIP destination execution gas from the spoke
+  gateways' 300,000 default to an explicit 3,500,000. A 900,000 manual
+  execution reached the gateway but still fell back to a claimable booking;
+  the same live liquid claim path estimates near 2,560,000 gas. Quotes and
+  transaction calldata now use the same exported
+  `EVM_TO_SUBTENSOR_DESTINATION_GAS_LIMIT` for zero-fee and partner-fee
+  bridges.
+- Added the explicit-gas `quoteBridgeToFinney` and `bridgeToFinney` overloads
+  to the public SpokeGateway ABI.
+
 ## 0.5.2 — 2026-09-16
 
 - Added opt-in stake rounding adjustment to Subtensor bridge preparation, with an explicit disable option and adjusted amount/plan metadata. Searches only on `StrandedStake`, preserves minimum output, requotes candidates and checks source balances, minimum remainders and partner-fee allocations. Approval-required plans are explicitly marked as not yet simulated.

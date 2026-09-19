@@ -45,6 +45,11 @@ export const MIN_LIQUID_EVM_TO_SUBTENSOR_WEI = 10000000000000000n
 export const MIN_LIQUID_BASE_TO_SUBTENSOR_WEI = MIN_LIQUID_EVM_TO_SUBTENSOR_WEI
 // Subtensor's minimum new stake is 2,000,000 RAO (0.002 TAO).
 export const MIN_LIQUID_SUBTENSOR_TO_EVM_WEI = 2_000_000n * EVM_WEI_PER_RAO
+// The spoke contracts' original 300k default can no longer cover the variable
+// cost of a liquid AlphaVault exit on Subtensor. The live claim path currently
+// estimates near 2.56m; keep headroom so normal CCIP execution does not fall
+// back to a manual retry when the staking path becomes more expensive.
+export const EVM_TO_SUBTENSOR_DESTINATION_GAS_LIMIT = 3_500_000n
 export type SubtensorDelivery = 'liquid' | 'staked'
 export type SubtensorSource = 'liquid' | 'staked'
 export type BridgeAsset = 'tao' | 'sn80'
@@ -374,7 +379,6 @@ function partnerFeeSummary(
     if (fee.bps === 0) return ''
     return ` Partner fee: ${charged} wei of ${unit} (${fee.bps} bps) on top, paid to ${fee.recipient}.`
 }
-/** Zero-fee calls keep the original entrypoints so existing plans stay byte-identical. */
 function encodeSpokeBridge(
     token: `0x${string}`,
     amountWei: bigint,
@@ -385,12 +389,23 @@ function encodeSpokeBridge(
         ? encodeFunctionData({
               abi: spokeAbi,
               functionName: 'bridgeToFinney',
-              args: [token, amountWei, exit],
+              args: [
+                  token,
+                  amountWei,
+                  exit,
+                  EVM_TO_SUBTENSOR_DESTINATION_GAS_LIMIT,
+              ],
           })
         : encodeFunctionData({
               abi: spokeAbi,
               functionName: 'bridgeToFinneyWithFee',
-              args: [token, amountWei, exit, 0n, fee],
+              args: [
+                  token,
+                  amountWei,
+                  exit,
+                  EVM_TO_SUBTENSOR_DESTINATION_GAS_LIMIT,
+                  fee,
+              ],
           })
 }
 type ResolvedStakePull = { validator: `0x${string}`; alphaRao: bigint }
@@ -516,7 +531,13 @@ async function quoteSpokeWithFee(
         address: gateway,
         abi: spokeAbi,
         functionName: 'quoteBridgeToFinneyWithFee',
-        args: [token, amountWei, exit, 0n, fee],
+        args: [
+            token,
+            amountWei,
+            exit,
+            EVM_TO_SUBTENSOR_DESTINATION_GAS_LIMIT,
+            fee,
+        ],
     })
     return networkFee
 }
@@ -799,7 +820,12 @@ export async function prepareEvmToSubtensor(
                   address: evm.contracts.gateway,
                   abi: spokeAbi,
                   functionName: 'quoteBridgeToFinney',
-                  args: [asset.evmToken, input.amountWei, exit],
+                  args: [
+                      asset.evmToken,
+                      input.amountWei,
+                      exit,
+                      EVM_TO_SUBTENSOR_DESTINATION_GAS_LIMIT,
+                  ],
               })
             : quoteSpokeWithFee(
                   provider,

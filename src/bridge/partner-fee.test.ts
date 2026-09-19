@@ -7,6 +7,7 @@ import {
     STAKING_ABI,
 } from '../abis/index.js'
 import {
+    EVM_TO_SUBTENSOR_DESTINATION_GAS_LIMIT,
     EVM_WEI_PER_RAO,
     MAX_PARTNER_FEE_BPS,
     buildBaseToSubtensorPlan,
@@ -73,7 +74,7 @@ describe('EVM to Subtensor with a partner fee', () => {
         expect(bridge.functionName).toBe('bridgeToFinneyWithFee')
         expect(bridge.args?.[0]).toBe(base.contracts.wrappedTao)
         expect(bridge.args?.[1]).toBe(hundred)
-        expect(bridge.args?.[3]).toBe(0n) // default destination gas
+        expect(bridge.args?.[3]).toBe(EVM_TO_SUBTENSOR_DESTINATION_GAS_LIMIT)
         expect(bridge.args?.[4]).toEqual({ recipient: partner, bps: 100 })
         expect(plan.steps[1]!.transaction.value).toBe('102') // native fee unchanged
         expect(plan.summary).toContain('Partner fee: 1000000000000000000 wei')

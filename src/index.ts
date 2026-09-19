@@ -7,6 +7,7 @@ export {
     buildEvmToSubtensorPlan,
     buildSubtensorToBasePlan,
     buildSubtensorToEvmPlan,
+    EVM_TO_SUBTENSOR_DESTINATION_GAS_LIMIT,
     MIN_LIQUID_BASE_TO_SUBTENSOR_WEI,
     MIN_LIQUID_EVM_TO_SUBTENSOR_WEI,
     MAX_PARTNER_FEE_BPS,

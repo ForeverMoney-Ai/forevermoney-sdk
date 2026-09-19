@@ -10,6 +10,7 @@ const expectedExports = [
     'BASE_CCIP_SELECTOR',
     'BASE_CHAIN_ID',
     'BASIS_POINTS',
+    'EVM_TO_SUBTENSOR_DESTINATION_GAS_LIMIT',
     'EVM_WEI_PER_RAO',
     'FOREVERMONEY_DEPLOYMENT_VERSION',
     'ForeverMoneyError',

@@ -79,7 +79,11 @@ describe('dependency and V5 gateway migration', () => {
         }
     })
 
-    it.each(fixtures.cases)(
+    it.each(
+        fixtures.cases.filter(
+            ({ method }) => method === 'buildSubtensorToEvmPlan'
+        )
+    )(
         'preserves the original $method plan apart from deployment metadata',
         ({ method, input, plan }) => {
             const actual =

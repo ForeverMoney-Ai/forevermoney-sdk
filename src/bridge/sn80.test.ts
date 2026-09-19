@@ -7,6 +7,7 @@ import {
     STAKING_ABI,
 } from '../abis/index.js'
 import {
+    EVM_TO_SUBTENSOR_DESTINATION_GAS_LIMIT,
     EVM_WEI_PER_RAO,
     SN80_NETUID,
     bridgeMessageIdFromReceipt,
@@ -71,6 +72,7 @@ describe('SN80 bridging between Base and Subtensor', () => {
                 wantLiquid: false,
                 minTaoOut: amountWei,
             },
+            EVM_TO_SUBTENSOR_DESTINATION_GAS_LIMIT,
         ])
         expect(transfer!.transaction.to).toBe(base.contracts.gateway)
         expect(transfer!.transaction.value).toBe('102')
@@ -165,6 +167,7 @@ describe('SN80 bridging between Base and Subtensor', () => {
                         wantLiquid: false,
                         minTaoOut: amountWei,
                     }),
+                    EVM_TO_SUBTENSOR_DESTINATION_GAS_LIMIT,
                 ],
             })
         )
