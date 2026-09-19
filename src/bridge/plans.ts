@@ -50,6 +50,17 @@ export const MIN_LIQUID_SUBTENSOR_TO_EVM_WEI = 2_000_000n * EVM_WEI_PER_RAO
 // estimates near 2.56m; keep headroom so normal CCIP execution does not fall
 // back to a manual retry when the staking path becomes more expensive.
 export const EVM_TO_SUBTENSOR_DESTINATION_GAS_LIMIT = 3_500_000n
+function resolveDestinationGasLimit(value?: bigint): bigint {
+    const gasLimit = value ?? EVM_TO_SUBTENSOR_DESTINATION_GAS_LIMIT
+    if (typeof gasLimit !== 'bigint' || gasLimit <= 0n) {
+        throw new ForeverMoneyError(
+            'INVALID_TRANSACTION_PLAN',
+            'Destination gas limit must be a positive bigint.',
+            { destinationGasLimit: String(gasLimit) }
+        )
+    }
+    return gasLimit
+}
 export type SubtensorDelivery = 'liquid' | 'staked'
 export type SubtensorSource = 'liquid' | 'staked'
 export type BridgeAsset = 'tao' | 'sn80'
@@ -80,6 +91,12 @@ export interface EvmToSubtensorRequest {
     readonly evmChain: ForeverMoneyEvmChain
     readonly asset?: BridgeAsset
     readonly partnerFee?: PartnerFee
+    /**
+     * CCIP gas made available to the Subtensor receiver. Defaults to
+     * `EVM_TO_SUBTENSOR_DESTINATION_GAS_LIMIT`; set per transaction when the
+     * destination execution path needs a different budget.
+     */
+    readonly destinationGasLimit?: bigint
     readonly sender: string
     readonly amountWei: bigint
     readonly destination: string
@@ -383,29 +400,19 @@ function encodeSpokeBridge(
     token: `0x${string}`,
     amountWei: bigint,
     exit: ExitParams,
+    destinationGasLimit: bigint,
     fee: ResolvedPartnerFee
 ): `0x${string}` {
     return fee.bps === 0
         ? encodeFunctionData({
               abi: spokeAbi,
               functionName: 'bridgeToFinney',
-              args: [
-                  token,
-                  amountWei,
-                  exit,
-                  EVM_TO_SUBTENSOR_DESTINATION_GAS_LIMIT,
-              ],
+              args: [token, amountWei, exit, destinationGasLimit],
           })
         : encodeFunctionData({
               abi: spokeAbi,
               functionName: 'bridgeToFinneyWithFee',
-              args: [
-                  token,
-                  amountWei,
-                  exit,
-                  EVM_TO_SUBTENSOR_DESTINATION_GAS_LIMIT,
-                  fee,
-              ],
+              args: [token, amountWei, exit, destinationGasLimit, fee],
           })
 }
 type ResolvedStakePull = { validator: `0x${string}`; alphaRao: bigint }
@@ -519,6 +526,7 @@ async function quoteSpokeWithFee(
     token: `0x${string}`,
     amountWei: bigint,
     exit: ExitParams,
+    destinationGasLimit: bigint,
     fee: ResolvedPartnerFee
 ): Promise<bigint> {
     const maxBps = await provider.readContract({
@@ -531,13 +539,7 @@ async function quoteSpokeWithFee(
         address: gateway,
         abi: spokeAbi,
         functionName: 'quoteBridgeToFinneyWithFee',
-        args: [
-            token,
-            amountWei,
-            exit,
-            EVM_TO_SUBTENSOR_DESTINATION_GAS_LIMIT,
-            fee,
-        ],
+        args: [token, amountWei, exit, destinationGasLimit, fee],
     })
     return networkFee
 }
@@ -606,6 +608,9 @@ export function buildEvmToSubtensorPlan(
     assertBaseToSubtensorAmount(input.amountWei, input.delivery)
     assertNonNegativeAmount(input.allowanceWei, 'Token allowance')
     assertNonNegativeAmount(input.exactNetworkFeeWei, 'Network fee')
+    const destinationGasLimit = resolveDestinationGasLimit(
+        input.destinationGasLimit
+    )
     const destination = normalizeSS58(input.destination)
     const exit = {
         ss58: ss58ToPublicKey(destination),
@@ -649,6 +654,7 @@ export function buildEvmToSubtensorPlan(
                 asset.evmToken,
                 input.amountWei,
                 exit,
+                destinationGasLimit,
                 partnerFee
             ),
             value,
@@ -795,6 +801,9 @@ export async function prepareEvmToSubtensor(
     assertDelivery(input.delivery)
     assertAssetMode(input.asset, input.delivery)
     assertBaseToSubtensorAmount(input.amountWei, input.delivery)
+    const destinationGasLimit = resolveDestinationGasLimit(
+        input.destinationGasLimit
+    )
     const destination = normalizeSS58(input.destination)
     const evm = getForeverMoneyEvmDeployment(input.evmChain)
     const exit = {
@@ -824,7 +833,7 @@ export async function prepareEvmToSubtensor(
                       asset.evmToken,
                       input.amountWei,
                       exit,
-                      EVM_TO_SUBTENSOR_DESTINATION_GAS_LIMIT,
+                      destinationGasLimit,
                   ],
               })
             : quoteSpokeWithFee(
@@ -833,6 +842,7 @@ export async function prepareEvmToSubtensor(
                   asset.evmToken,
                   input.amountWei,
                   exit,
+                  destinationGasLimit,
                   partnerFee
               ),
     ])
@@ -842,6 +852,7 @@ export async function prepareEvmToSubtensor(
             asset.evmToken,
             input.amountWei,
             exit,
+            destinationGasLimit,
             partnerFee
         )
         estimatedBridgeGas = await provider.estimateGas({

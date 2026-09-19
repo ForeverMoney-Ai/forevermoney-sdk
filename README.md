@@ -103,7 +103,9 @@ liquid deliveries with `AMOUNT_BELOW_MINIMUM` before quoting or planning them;
 staked delivery does not use this liquid-unstaking minimum.
 EVM-to-Subtensor plans quote and encode an explicit 3,500,000 destination gas
 limit so the variable-cost Subtensor exit path can auto-execute through CCIP.
-The policy is exported as `EVM_TO_SUBTENSOR_DESTINATION_GAS_LIMIT`.
+The policy is exported as `EVM_TO_SUBTENSOR_DESTINATION_GAS_LIMIT`. Pass a
+positive bigint as `destinationGasLimit` to override it for one preparation or
+plan; the SDK uses that value for both the fee quote and transaction calldata.
 The network-fee buffer is 2% and the estimated-gas buffer is 50%; both policies
 are exported as bigint basis-point constants and covered by property tests.
 

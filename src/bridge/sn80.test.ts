@@ -141,13 +141,14 @@ describe('SN80 bridging between Base and Subtensor', () => {
     })
 
     it('quotes the Base SN80 token and estimates only after its approval exists', async () => {
+        const destinationGasLimit = 4_200_000n
         const readContract = vi.fn(async ({ functionName }) =>
             functionName === 'allowance' ? amountWei : 100n
         )
         const estimateGas = vi.fn(async () => 100n)
         const result = await prepareEvmToSubtensor(
             { readContract, estimateGas } as unknown as PublicClient,
-            toFinney
+            { ...toFinney, destinationGasLimit }
         )
         expect(readContract).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -167,7 +168,7 @@ describe('SN80 bridging between Base and Subtensor', () => {
                         wantLiquid: false,
                         minTaoOut: amountWei,
                     }),
-                    EVM_TO_SUBTENSOR_DESTINATION_GAS_LIMIT,
+                    destinationGasLimit,
                 ],
             })
         )
@@ -175,6 +176,30 @@ describe('SN80 bridging between Base and Subtensor', () => {
         expect(result.plan.steps).toHaveLength(1)
         expect(result.plan.steps[0]!.transaction.gasLimit).toBe('150')
         expect(result.transactionValueWei).toBe(102n)
+        const bridge = decodeFunctionData({
+            abi: parseAbi(SPOKE_GATEWAY_ABI),
+            data: result.plan.steps[0]!.transaction.data as Hex,
+        })
+        expect(bridge.args?.[3]).toBe(destinationGasLimit)
+    })
+
+    it('rejects non-positive destination gas overrides before RPC calls', async () => {
+        const readContract = vi.fn()
+        await expect(
+            prepareEvmToSubtensor({ readContract } as unknown as PublicClient, {
+                ...toFinney,
+                destinationGasLimit: 0n,
+            })
+        ).rejects.toMatchObject({ code: 'INVALID_TRANSACTION_PLAN' })
+        expect(readContract).not.toHaveBeenCalled()
+        expect(() =>
+            buildBaseToSubtensorPlan({
+                ...toFinney,
+                destinationGasLimit: -1n,
+                allowanceWei: amountWei,
+                exactNetworkFeeWei: 100n,
+            })
+        ).toThrow('positive bigint')
     })
 
     it('quotes Finney SN80 and checks allowance for subnet 80 before preparing approval', async () => {

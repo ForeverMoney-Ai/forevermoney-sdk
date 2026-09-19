@@ -145,6 +145,7 @@ describe('EVM to Subtensor with a partner fee', () => {
     })
 
     it('quotes with the fee, enforces the gateway cap, and estimates gas with the WithFee calldata', async () => {
+        const destinationGasLimit = 4_300_000n
         const calls: string[] = []
         const readContract = vi.fn(async ({ functionName, args }) => {
             calls.push(functionName)
@@ -154,6 +155,7 @@ describe('EVM to Subtensor with a partner fee', () => {
                 case 'maxIntegratorFeeBps':
                     return 100
                 case 'quoteBridgeToFinneyWithFee':
+                    expect(args[3]).toBe(destinationGasLimit)
                     expect(args[4]).toEqual({ recipient: partner, bps: 100 })
                     return [500n, 10n ** 18n, hundred]
                 default:
@@ -164,6 +166,7 @@ describe('EVM to Subtensor with a partner fee', () => {
             expect(decode(spoke, data).functionName).toBe(
                 'bridgeToFinneyWithFee'
             )
+            expect(decode(spoke, data).args?.[3]).toBe(destinationGasLimit)
             return 100n
         })
         const result = await prepareEvmToSubtensor(
@@ -174,6 +177,7 @@ describe('EVM to Subtensor with a partner fee', () => {
                 amountWei: hundred,
                 destination: evmToMirrorSS58(recipient),
                 delivery: 'staked',
+                destinationGasLimit,
                 partnerFee,
             }
         )

@@ -8,7 +8,9 @@
   the same live liquid claim path estimates near 2,560,000 gas. Quotes and
   transaction calldata now use the same exported
   `EVM_TO_SUBTENSOR_DESTINATION_GAS_LIMIT` for zero-fee and partner-fee
-  bridges.
+  bridges. Callers can override it per transaction with the optional
+  `destinationGasLimit` request field, without changing or republishing the
+  SDK.
 - Added the explicit-gas `quoteBridgeToFinney` and `bridgeToFinney` overloads
   to the public SpokeGateway ABI.
 
