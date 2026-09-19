@@ -20,6 +20,7 @@ import {
 
 const baseForkRpcUrl = process.env.FOREVERMONEY_BASE_FORK_RPC_URL
 const subtensorForkRpcUrl = process.env.FOREVERMONEY_SUBTENSOR_FORK_RPC_URL
+const subtensorLiveRpcUrl = process.env.SUBTENSOR_RPC_URL
 const sender = '0x1111111111111111111111111111111111111111'
 const destination = AccountId(42).dec(new Uint8Array(32).fill(7))
 const bridgeAmountWei = 10_000_000_000_000_000n
@@ -162,7 +163,6 @@ describe.skipIf(subtensorForkRpcUrl === undefined)(
             expect(await gateway.read.maxIntegratorFeeBps()).toBeGreaterThan(0)
             // V5.1: multi-validator staked input.
             expect(await gateway.read.MAX_STAKE_SOURCES()).toBe(16n)
-            expect(await gateway.read.minStakeRequired()).toBeGreaterThan(0n)
             expect(await gateway.read.GATEWAY_COLDKEY()).not.toBe(
                 `0x${'0'.repeat(64)}`
             )
@@ -235,13 +235,18 @@ describe.skipIf(subtensorForkRpcUrl === undefined)(
 describe.skipIf(
     baseForkRpcUrl === undefined || subtensorForkRpcUrl === undefined
 )('SDK fork transports', () => {
-    it('prepares SN80 transfers in both directions using live token and stake allowances', async () => {
-        if (baseForkRpcUrl === undefined || subtensorForkRpcUrl === undefined)
-            throw new Error('Fork RPC URLs are required for this test.')
+    it('prepares SN80 transfers using forked EVM state and live Subtensor precompiles', async () => {
+        if (baseForkRpcUrl === undefined || subtensorLiveRpcUrl === undefined)
+            throw new Error(
+                'Base fork and live Subtensor RPC URLs are required.'
+            )
         const client = createForeverMoneyClient({
             transports: {
                 base: http(baseForkRpcUrl),
-                subtensor: http(subtensorForkRpcUrl),
+                // Anvil reproduces EVM state but cannot execute Subtensor's
+                // runtime precompiles. Read the production staking allowance
+                // through the live endpoint while all contracts stay read-only.
+                subtensor: http(subtensorLiveRpcUrl),
             },
         })
         await expect(

@@ -5,17 +5,13 @@ set -euo pipefail
 : "${SUBTENSOR_RPC_URL:?SUBTENSOR_RPC_URL is required}"
 
 base_port=18545
-subtensor_port=19545
 base_log="$(mktemp -t forevermoney-base-fork.XXXXXX)"
-subtensor_log="$(mktemp -t forevermoney-subtensor-fork.XXXXXX)"
 
 anvil --silent --fork-url "$BASE_RPC_URL" --chain-id 8453 --port "$base_port" >"$base_log" 2>&1 &
 base_pid=$!
-anvil --silent --fork-url "$SUBTENSOR_RPC_URL" --chain-id 964 --port "$subtensor_port" >"$subtensor_log" 2>&1 &
-subtensor_pid=$!
 
 cleanup() {
-    kill "$base_pid" "$subtensor_pid" 2>/dev/null || true
+    kill "$base_pid" 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
 
@@ -36,8 +32,7 @@ wait_for_rpc() {
 }
 
 wait_for_rpc "$base_port" "$base_log"
-wait_for_rpc "$subtensor_port" "$subtensor_log"
 
 FOREVERMONEY_BASE_FORK_RPC_URL="http://127.0.0.1:${base_port}" \
-FOREVERMONEY_SUBTENSOR_FORK_RPC_URL="http://127.0.0.1:${subtensor_port}" \
+FOREVERMONEY_SUBTENSOR_FORK_RPC_URL="$SUBTENSOR_RPC_URL" \
 npm test -- --run src/integration/fork.test.ts

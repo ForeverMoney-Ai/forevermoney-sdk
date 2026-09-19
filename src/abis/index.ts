@@ -38,7 +38,6 @@ export const ALPHA_GATEWAY_ABI = Object.freeze([
     'function bridgeOutWithFee(uint64 destSelector,address token,address recipient,uint256 taoAmount,uint256 stakedAlphaRao,uint256 minTokenOut,(address recipient,uint16 bps) integrator) payable returns (bytes32 messageId)',
     'function bridgeOutFromValidators(uint64 destSelector,address token,address recipient,uint256 taoAmount,(bytes32 validator,uint256 alphaRao)[] sources,uint256 minTokenOut) payable returns (bytes32 messageId)',
     'function bridgeOutFromValidatorsWithFee(uint64 destSelector,address token,address recipient,uint256 taoAmount,(bytes32 validator,uint256 alphaRao)[] sources,uint256 minTokenOut,(address recipient,uint16 bps) integrator) payable returns (bytes32 messageId)',
-    'function minStakeRequired() view returns (uint256)',
     'function MAX_STAKE_SOURCES() view returns (uint256)',
     'function GATEWAY_COLDKEY() view returns (bytes32)',
     'function claimLiquid(address token,uint256 minTaoOut,address to)',
