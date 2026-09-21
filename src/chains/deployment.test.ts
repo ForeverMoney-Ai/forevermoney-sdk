@@ -63,6 +63,9 @@ describe('canonical production deployment', () => {
         expect(foreverMoneyDeployment.base.contracts.wrappedSn80).toBe(
             '0x6F63d869011f95274498023b4ABFC00b30c34378'
         )
+        expect(foreverMoneyDeployment.robinhood.contracts.wrappedSn80).toBe(
+            '0x6F63d869011f95274498023b4ABFC00b30c34378'
+        )
         expect(foreverMoneyDeployment.subtensor.contracts.wrappedSn80).toBe(
             '0xfD628dE75EF96f0A5C59659159C6cA81E0DC2222'
         )

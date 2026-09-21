@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.4 — 2026-09-21
+
+- Added the canonical Robinhood SN80 token to deployment metadata and enabled
+  staked SN80 bridge preparation between Robinhood and Finney in both
+  directions. Deployment metadata version is 1.4.0.
+
 ## 0.5.3 — 2026-09-19
 
 - Increased EVM-to-Subtensor CCIP destination execution gas from the spoke

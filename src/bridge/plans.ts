@@ -213,16 +213,10 @@ function bridgeAsset(
             'Asset must be "tao" or "sn80".'
         )
     }
-    if (asset === 'sn80' && evmChain !== 'base') {
-        throw new ForeverMoneyError(
-            'INVALID_TRANSACTION_PLAN',
-            'SN80 bridging is supported between Base and Subtensor.'
-        )
-    }
     const evm = getForeverMoneyEvmDeployment(evmChain)
     return asset === 'sn80'
         ? {
-              evmToken: foreverMoneyDeployment.base.contracts.wrappedSn80,
+              evmToken: evm.contracts.wrappedSn80,
               subtensorToken:
                   foreverMoneyDeployment.subtensor.contracts.wrappedSn80,
               label: 'SN80',

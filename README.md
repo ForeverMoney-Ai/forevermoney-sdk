@@ -134,13 +134,12 @@ The bridge does not deduct its fee from the destination amount. For both
 directions, the SDK encodes the bridge amount itself as the contract's minimum
 output; callers cannot weaken that invariant.
 
-## Bridge SN80 on Base
+## Bridge SN80 on Base and Robinhood
 
-Pass `asset: 'sn80'` to bridge Base SN80 to a Finney subnet-80 staked position,
-or bridge existing subnet-80 stake back to Base SN80. The default asset is `tao`,
-so existing TAO integrations keep their behavior. SN80 is supported on the Base
-lane with staked input/delivery; liquid TAO conversion and the Robinhood SN80
-lane are not supported by these methods.
+Pass `asset: 'sn80'` to bridge Base or Robinhood SN80 to a Finney subnet-80
+staked position, or bridge existing subnet-80 stake back to either EVM chain.
+The default asset is `tao`, so existing TAO integrations keep their behavior.
+SN80 uses staked input/delivery; liquid TAO conversion is not supported.
 
 ```ts
 const toFinney = await foreverMoney.bridge.prepareBaseToSubtensor({
@@ -175,10 +174,13 @@ any other SN80 validator cannot be bridged until it is moved to that hotkey.
 Canonical SN80 token addresses are exported as `contracts.wrappedSn80`:
 
 - Base: `0x6F63d869011f95274498023b4ABFC00b30c34378`
+- Robinhood: `0x6F63d869011f95274498023b4ABFC00b30c34378`
 - Finney: `0xfD628dE75EF96f0A5C59659159C6cA81E0DC2222`
 
 The Base address `0x2292233d308188fcb3775f63a20f31dff6db02d9` is the SN80/TAO
-liquidity pool; bridge calls use the token addresses above.
+liquidity pool. The Robinhood SN80/TAO pool is
+`0xBB17f4Db7831128239a34C2F7bd291622FC2Cc38`; bridge calls use the token
+addresses above.
 
 ## Bridge stake held with several validators
 

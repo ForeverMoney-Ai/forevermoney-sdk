@@ -12,7 +12,9 @@ import {
     SN80_NETUID,
     bridgeMessageIdFromReceipt,
     buildBaseToSubtensorPlan,
+    buildEvmToSubtensorPlan,
     buildSubtensorToBasePlan,
+    buildSubtensorToEvmPlan,
     evmToMirrorSS58,
     foreverMoneyDeployment,
     type EvmToSubtensorRequest,
@@ -21,7 +23,7 @@ import {
 import { eventLog } from '../test-utils.js'
 import { prepareEvmToSubtensor, prepareSubtensorToEvm } from './plans.js'
 
-const { base, subtensor } = foreverMoneyDeployment
+const { base, robinhood, subtensor } = foreverMoneyDeployment
 const sender = '0x1111111111111111111111111111111111111111'
 const recipient = '0x2222222222222222222222222222222222222222'
 const amountWei = 100n * 10n ** 18n
@@ -140,6 +142,41 @@ describe('SN80 bridging between Base and Subtensor', () => {
         ).toThrow('whole RAO')
     })
 
+    it('builds Robinhood SN80 plans with its token, gateway and selector', () => {
+        const inbound = buildEvmToSubtensorPlan({
+            ...toFinney,
+            evmChain: 'robinhood',
+            allowanceWei: 0n,
+            exactNetworkFeeWei: 100n,
+        })
+        expect(inbound.action).toBe('bridge.robinhood-to-subtensor')
+        expect(inbound.steps[0]!.transaction.to).toBe(
+            robinhood.contracts.wrappedSn80
+        )
+        expect(inbound.steps[1]!.transaction.to).toBe(
+            robinhood.contracts.gateway
+        )
+        const inboundCall = decodeFunctionData({
+            abi: parseAbi(SPOKE_GATEWAY_ABI),
+            data: inbound.steps[1]!.transaction.data as Hex,
+        })
+        expect(inboundCall.args?.[0]).toBe(robinhood.contracts.wrappedSn80)
+
+        const outbound = buildSubtensorToEvmPlan({
+            ...toBase,
+            evmChain: 'robinhood',
+            stakingAllowanceRao: amountRao,
+            exactNetworkFeeWei: 100n,
+        })
+        expect(outbound.action).toBe('bridge.subtensor-to-robinhood')
+        const outboundCall = decodeFunctionData({
+            abi: parseAbi(ALPHA_GATEWAY_ABI),
+            data: outbound.steps[0]!.transaction.data as Hex,
+        })
+        expect(outboundCall.args?.[0]).toBe(robinhood.ccipSelector)
+        expect(outboundCall.args?.[1]).toBe(subtensor.contracts.wrappedSn80)
+    })
+
     it('quotes the Base SN80 token and estimates only after its approval exists', async () => {
         const destinationGasLimit = 4_200_000n
         const readContract = vi.fn(async ({ functionName }) =>
@@ -244,7 +281,6 @@ describe('SN80 bridging between Base and Subtensor', () => {
         } as unknown as PublicClient
         for (const input of [
             { ...toFinney, delivery: 'liquid' as const },
-            { ...toFinney, evmChain: 'robinhood' as const },
             { ...toFinney, asset: 'sn81' } as unknown as EvmToSubtensorRequest,
         ]) {
             await expect(
@@ -253,7 +289,6 @@ describe('SN80 bridging between Base and Subtensor', () => {
         }
         for (const input of [
             { ...toBase, source: 'liquid' as const },
-            { ...toBase, evmChain: 'robinhood' as const },
             { ...toBase, netuid: 0n },
         ]) {
             await expect(
