@@ -4,11 +4,13 @@ import {
     encodeFunctionResult,
     parseAbi,
     toHex,
+    toFunctionSelector,
     type Hex,
 } from 'viem'
 import {
     ALPHA_GATEWAY_ABI,
     CCIP_EXECUTION_ABI,
+    CCIP_ROUTER_ABI,
     SPOKE_GATEWAY_ABI,
 } from './abis/index.js'
 import {
@@ -33,12 +35,28 @@ const unused: RpcTransport = {
         throw new Error('Unexpected transport call')
     },
 }
+const emptyOffRamps = encodeFunctionResult({
+    abi: parseAbi(CCIP_ROUTER_ABI),
+    functionName: 'getOffRamps',
+    result: [],
+})
+function isRampDiscovery(request: RpcRequest) {
+    return (
+        request.method === 'eth_call' &&
+        Array.isArray(request.params) &&
+        request.params[0]?.data === toFunctionSelector('getOffRamps()')
+    )
+}
 const transport = (
     chainId: number,
     handler: (request: RpcRequest) => unknown
 ): RpcTransport => ({
     request: vi.fn(async (request) =>
-        request.method === 'eth_chainId' ? toHex(chainId) : handler(request)
+        request.method === 'eth_chainId'
+            ? toHex(chainId)
+            : isRampDiscovery(request)
+              ? emptyOffRamps
+              : handler(request)
     ),
 })
 
@@ -142,7 +160,7 @@ describe('viem RPC integration boundaries', () => {
                         fromBlock: '0xa',
                         toBlock: 'latest',
                         topics: [
-                            execution.topics[0],
+                            expect.any(String),
                             toHex(base.ccipSelector, { size: 32 }),
                             null,
                             messageId,
@@ -280,12 +298,86 @@ function legacyProvider(
         handler,
         async send(method: string, params: unknown[]): Promise<unknown> {
             if (method === 'eth_chainId') return toHex(this.chainId)
+            if (isRampDiscovery({ method, params })) return emptyOffRamps
             return this.handler({ method, params })
         },
     }
 }
 
 describe('legacy JSON-RPC provider compatibility', () => {
+    it('discovers the live Robinhood v2 off-ramp and decodes the completed SN80 delivery', async () => {
+        const ramp = '0x5060De90b723a7Eb705742Ff1a22a908b1D8b626'
+        const liveMessage =
+            '0x57fa47ec52e79b961505e578bdc9cf028032a28489d12812204dadad5e99b64b'
+        const execution = {
+            ...rpcLog(ramp, {
+                topics: [
+                    '0x8c324ce1367b83031769f6a813e3bb4c117aba2185789d66b98b791405be6df2',
+                    toHex(subtensor.ccipSelector, { size: 32 }),
+                    toHex(75n, { size: 32 }),
+                    liveMessage,
+                ] as Hex[],
+                data: ('0x' +
+                    '2'.padStart(64, '0') +
+                    '40'.padStart(64, '0') +
+                    '0'.repeat(64)) as Hex,
+            }),
+            blockNumber: toHex(68985214),
+            transactionHash:
+                '0xfe9e2f2f03beb6acd7f7026d4d0f2ee3dbd72a21db63703086f1a4144f16393b',
+        }
+        const send = vi.fn(async (method: string, params: unknown[]) => {
+            if (method === 'eth_chainId') return toHex(4663)
+            if (method === 'eth_call')
+                return encodeFunctionResult({
+                    abi: parseAbi(CCIP_ROUTER_ABI),
+                    functionName: 'getOffRamps',
+                    result: [
+                        {
+                            sourceChainSelector: subtensor.ccipSelector,
+                            offRamp: ramp,
+                        },
+                        { sourceChainSelector: 1n, offRamp: sender },
+                    ],
+                })
+            if (method === 'eth_getLogs') {
+                const filter = params[0] as {
+                    address: string[]
+                    topics: string[]
+                }
+                expect(filter.address).toEqual([
+                    foreverMoneyDeployment.robinhood.contracts
+                        .ccipOffRampFromSubtensor,
+                    ramp,
+                ])
+                expect(filter.topics.slice(1)).toEqual([
+                    toHex(subtensor.ccipSelector, { size: 32 }),
+                    null,
+                    liveMessage,
+                ])
+                return filter.topics[0] === execution.topics[0]
+                    ? [execution]
+                    : []
+            }
+            throw new Error(`Unexpected ${method}`)
+        })
+        const provider = { send }
+        const request = {
+            direction: 'subtensor-to-robinhood',
+            messageId: liveMessage,
+            fromBlock: 68985200,
+        } as const
+        await expect(getCcipDeliveryStatus(provider, request)).resolves.toBe(
+            'success'
+        )
+        await expect(getCcipDeliveryStatus(provider, request)).resolves.toBe(
+            'success'
+        )
+        expect(
+            send.mock.calls.filter(([method]) => method === 'eth_call')
+        ).toHaveLength(1)
+    })
+
     it.each([
         ['base-to-subtensor', 964],
         ['robinhood-to-subtensor', 964],
@@ -380,7 +472,7 @@ describe('legacy JSON-RPC provider compatibility', () => {
                             fromBlock: '0xa',
                             toBlock: 'latest',
                             topics: [
-                                execution.topics[0],
+                                expect.any(String),
                                 toHex(base.ccipSelector, { size: 32 }),
                                 null,
                                 messageId,

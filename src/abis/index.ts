@@ -83,6 +83,7 @@ export const CCIP_EXECUTION_ABI = Object.freeze([
 
 export const CCIP_ROUTER_ABI = Object.freeze([
     'function isOffRamp(uint64 sourceChainSelector,address offRamp) view returns (bool)',
+    'function getOffRamps() view returns ((uint64 sourceChainSelector,address offRamp)[])',
 ] as const)
 
 export const foreverMoneyAbis = Object.freeze({

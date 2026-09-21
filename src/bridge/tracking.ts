@@ -6,7 +6,11 @@ import {
     type Hex,
     type PublicClient,
 } from 'viem'
-import { ALPHA_GATEWAY_ABI, CCIP_EXECUTION_ABI } from '../abis/index.js'
+import {
+    ALPHA_GATEWAY_ABI,
+    CCIP_EXECUTION_ABI,
+    CCIP_ROUTER_ABI,
+} from '../abis/index.js'
 import { foreverMoneyDeployment } from '../chains/deployment.js'
 import { ForeverMoneyError } from '../core/errors.js'
 import {
@@ -21,6 +25,53 @@ import { normalizeBytes32 } from '../core/validation.js'
 
 const ccipExecutionAbi = parseAbi(CCIP_EXECUTION_ABI)
 const alphaGatewayAbi = parseAbi(ALPHA_GATEWAY_ABI)
+const routerAbi = parseAbi(CCIP_ROUTER_ABI)
+const executionV2Abi = parseAbi([
+    'event ExecutionStateChanged(uint64 indexed sourceChainSelector,uint64 indexed sequenceNumber,bytes32 indexed messageId,uint8 state,bytes returnData)',
+])
+const rampCache = new WeakMap<
+    TrackingProvider,
+    Map<string, { expires: number; request: Promise<readonly Hex[]> }>
+>()
+
+function deliveryOffRamps(
+    provider: TrackingProvider,
+    client: PublicClient,
+    router: Hex,
+    selector: bigint,
+    legacy: Hex
+) {
+    let cache = rampCache.get(provider)
+    if (!cache) {
+        cache = new Map()
+        rampCache.set(provider, cache)
+    }
+    const key = `${router}:${selector}:${legacy}`
+    const cached = cache.get(key)
+    if (cached && cached.expires > Date.now()) return cached.request
+    const request = client
+        .readContract({
+            address: router,
+            abi: routerAbi,
+            functionName: 'getOffRamps',
+        })
+        .then((ramps) => {
+            const addresses = new Map<string, Hex>([
+                [legacy.toLowerCase(), legacy],
+            ])
+            for (const ramp of ramps) {
+                if (ramp.sourceChainSelector === selector)
+                    addresses.set(ramp.offRamp.toLowerCase(), ramp.offRamp)
+            }
+            return [...addresses.values()]
+        })
+    const entry = { expires: Date.now() + 300_000, request }
+    cache.set(key, entry)
+    void request.catch(() => {
+        if (cache.get(key) === entry) cache.delete(key)
+    })
+    return request
+}
 
 export type CcipDeliveryStatus = 'failure' | 'recovery' | 'success' | 'waiting'
 
@@ -206,13 +257,35 @@ export async function getCcipDeliveryStatus(
             : foreverMoneyDeployment.subtensor.contracts
                   .ccipOffRampFromRobinhood
         : evm.contracts.ccipOffRampFromSubtensor
-    const logs = await client.getLogs({
-        address: offRamp,
-        fromBlock: BigInt(input.fromBlock),
-        toBlock: 'latest',
-        event: ccipExecutionAbi[0],
-        args: { sourceChainSelector: sourceSelector, messageId },
-        strict: true,
+    const offRamps = await deliveryOffRamps(
+        provider,
+        client,
+        evmToSubtensor
+            ? foreverMoneyDeployment.subtensor.contracts.ccipRouter
+            : evm.contracts.ccipRouter,
+        sourceSelector,
+        offRamp
+    )
+    const batches = await Promise.all(
+        [executionV2Abi[0], ccipExecutionAbi[0]].map((event) =>
+            client.getLogs({
+                address: offRamps.length === 1 ? offRamps[0] : [...offRamps],
+                fromBlock: BigInt(input.fromBlock),
+                toBlock: 'latest',
+                event,
+                args: { sourceChainSelector: sourceSelector, messageId },
+                strict: true,
+            })
+        )
+    )
+    const logs = batches.flat().sort((a, b) => {
+        const blockA = a.blockNumber ?? 0n
+        const blockB = b.blockNumber ?? 0n
+        return blockA === blockB
+            ? (a.logIndex ?? 0) - (b.logIndex ?? 0)
+            : blockA < blockB
+              ? -1
+              : 1
     })
     const latest = logs.at(-1)
     if (latest === undefined) return 'waiting'

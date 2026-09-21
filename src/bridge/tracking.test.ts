@@ -96,6 +96,7 @@ function provider(
 ): PublicClient {
     return {
         getChainId: vi.fn(async () => options.chainId ?? 964),
+        readContract: vi.fn(async () => []),
         getBlockNumber: vi.fn(async () => BigInt(options.blockNumber ?? 123)),
         getLogs: vi.fn(async () => options.logs ?? []),
         getTransactionReceipt: vi.fn(async () => {

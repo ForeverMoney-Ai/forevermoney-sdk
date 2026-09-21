@@ -1,6 +1,6 @@
 {
     "name": "@forevermoney/sdk",
-    "version": "0.5.4",
+    "version": "0.5.5",
     "description": "Typed bridge and vault integration SDK for ForeverMoney",
     "license": "MIT",
     "repository": {

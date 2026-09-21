@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.5 — 2026-09-21
+
+- Discover destination off-ramps from the canonical CCIP router for the source
+  chain, retaining the configured legacy off-ramp for historical transfers.
+  Cache discovery for five minutes per provider and coalesce concurrent reads.
+- Recognise both legacy and CCIP v2 execution events and select the latest
+  execution across off-ramps. This fixes completed Finney-to-Robinhood SN80
+  deliveries remaining in the waiting state. Verified against a real delivery.
+
 ## 0.5.4 — 2026-09-21
 
 - Added the canonical Robinhood SN80 token to deployment metadata and enabled
