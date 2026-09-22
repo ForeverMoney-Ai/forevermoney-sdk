@@ -134,6 +134,21 @@ The bridge does not deduct its fee from the destination amount. For both
 directions, the SDK encodes the bridge amount itself as the contract's minimum
 output; callers cannot weaken that invariant.
 
+## Bridge Pareton (SN10)
+
+Use `asset: 'sn10'` with `evmChain: 'base'` or `'robinhood'` in the
+bridge plan and preparation APIs. Finney input and delivery must be staked;
+netuid defaults to 10 and any other netuid is rejected. Amounts use 18 decimals
+and must be whole alpha RAO. Approval, quoting and tracking use the same APIs
+as SN80 below.
+
+Canonical `contracts.wrappedSn10` addresses:
+
+- Base and Robinhood: `0xDdDE5965D49e69b6362BD8743e139a45dBFEb7b3`.
+- Subtensor (964): `0xcd0836D1ecE4AEDf5B39f2792e0790BBE79449b3`.
+
+The Subtensor ERC-20 remains named "Subnet 10"; the application displays Pareton.
+
 ## Bridge SN80 on Base and Robinhood
 
 Pass `asset: 'sn80'` to bridge Base or Robinhood SN80 to a Finney subnet-80

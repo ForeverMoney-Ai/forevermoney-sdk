@@ -23,6 +23,7 @@ import {
 import {
     EVM_WEI_PER_RAO,
     SN80_NETUID,
+    SN10_NETUID,
     foreverMoneyDeployment,
     getForeverMoneyEvmDeployment,
     type ForeverMoneyEvmChain,
@@ -63,7 +64,7 @@ function resolveDestinationGasLimit(value?: bigint): bigint {
 }
 export type SubtensorDelivery = 'liquid' | 'staked'
 export type SubtensorSource = 'liquid' | 'staked'
-export type BridgeAsset = 'tao' | 'sn80'
+export type BridgeAsset = 'tao' | 'sn80' | 'sn10'
 /**
  * Optional partner (integrator) fee, charged ON TOP of the bridged amount and
  * paid to `recipient` on the source chain. The full `amountWei` still crosses.
@@ -207,20 +208,21 @@ function bridgeAsset(
     evmChain: ForeverMoneyEvmChain,
     asset: BridgeAsset = 'tao'
 ) {
-    if (asset !== 'tao' && asset !== 'sn80') {
+    if (asset !== 'tao' && asset !== 'sn80' && asset !== 'sn10') {
         throw new ForeverMoneyError(
             'INVALID_TRANSACTION_PLAN',
-            'Asset must be "tao" or "sn80".'
+            'Asset must be "tao", "sn80", or "sn10".'
         )
     }
     const evm = getForeverMoneyEvmDeployment(evmChain)
-    return asset === 'sn80'
+    const tokenKey = asset === 'sn10' ? 'wrappedSn10' : 'wrappedSn80'
+    return asset !== 'tao'
         ? {
-              evmToken: evm.contracts.wrappedSn80,
+              evmToken: evm.contracts[tokenKey],
               subtensorToken:
-                  foreverMoneyDeployment.subtensor.contracts.wrappedSn80,
-              label: 'SN80',
-              wrappedLabel: 'SN80',
+                  foreverMoneyDeployment.subtensor.contracts[tokenKey],
+              label: asset.toUpperCase(),
+              wrappedLabel: asset.toUpperCase(),
           }
         : {
               evmToken: evm.contracts.wrappedTao,
@@ -234,17 +236,22 @@ function assertAssetMode(
     asset: BridgeAsset | undefined,
     mode: SubtensorSource
 ): void {
-    if (asset === 'sn80' && mode !== 'staked') {
+    if ((asset === 'sn80' || asset === 'sn10') && mode !== 'staked') {
         throw new ForeverMoneyError(
             'INVALID_TRANSACTION_PLAN',
-            'SN80 bridging requires staked subnet 80 input or delivery; liquid TAO conversion is not supported.'
+            `${asset.toUpperCase()} bridging requires staked subnet ${asset === 'sn10' ? SN10_NETUID : SN80_NETUID} input or delivery; liquid TAO conversion is not supported.`
         )
     }
 }
 function sourceNetuid(input: SubtensorToEvmRequest): bigint | undefined {
     if (input.source !== 'staked') return undefined
-    const netuid =
-        input.netuid ?? (input.asset === 'sn80' ? SN80_NETUID : undefined)
+    const assetNetuid =
+        input.asset === 'sn10'
+            ? SN10_NETUID
+            : input.asset === 'sn80'
+              ? SN80_NETUID
+              : undefined
+    const netuid = input.netuid ?? assetNetuid
     if (netuid === undefined) {
         throw new ForeverMoneyError(
             'INVALID_TRANSACTION_PLAN',
@@ -252,10 +259,10 @@ function sourceNetuid(input: SubtensorToEvmRequest): bigint | undefined {
         )
     }
     assertNonNegativeAmount(netuid, 'netuid')
-    if (input.asset === 'sn80' && netuid !== SN80_NETUID) {
+    if (assetNetuid !== undefined && netuid !== assetNetuid) {
         throw new ForeverMoneyError(
             'INVALID_TRANSACTION_PLAN',
-            'SN80 staking approvals must use netuid 80.'
+            `${input.asset!.toUpperCase()} staking approvals must use netuid ${assetNetuid}.`
         )
     }
     return netuid

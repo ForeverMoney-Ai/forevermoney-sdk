@@ -24,6 +24,7 @@ const expectedExports = [
     'RAO_PER_TAO',
     'ROBINHOOD_CCIP_SELECTOR',
     'ROBINHOOD_CHAIN_ID',
+    'SN10_NETUID',
     'SN80_NETUID',
     'SUBTENSOR_CCIP_SELECTOR',
     'SUBTENSOR_CHAIN_ID',

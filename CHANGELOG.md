@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.6 — 2026-09-22
+
+- Add Pareton (SN10) deployment metadata on Base, Robinhood and Subtensor.
+- Support staked-only SN10 bridge plans and preparation in both directions
+  on both EVM spokes, enforcing netuid 10. Deployment version is 1.5.0.
+
 ## 0.5.5 — 2026-09-21
 
 - Discover destination off-ramps from the canonical CCIP router for the source
