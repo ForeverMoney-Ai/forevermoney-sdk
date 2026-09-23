@@ -227,9 +227,17 @@ function bridgeAsset(
             : asset === 'sn10'
               ? 'wrappedSn10'
               : 'wrappedSn80'
+    const evmToken =
+        asset === 'tao' ? evm.contracts.wrappedTao : evm.contracts[tokenKey]
+    if (!evmToken) {
+        throw new ForeverMoneyError(
+            'INVALID_TRANSACTION_PLAN',
+            `${asset.toUpperCase()} bridging is not supported on ${evmChain}.`
+        )
+    }
     return asset !== 'tao'
         ? {
-              evmToken: evm.contracts[tokenKey],
+              evmToken,
               subtensorToken:
                   foreverMoneyDeployment.subtensor.contracts[tokenKey],
               label: asset.toUpperCase(),

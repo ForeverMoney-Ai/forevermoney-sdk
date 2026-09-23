@@ -11,7 +11,7 @@ export const EVM_WEI_PER_RAO = 1_000_000_000n
 export const SN78_NETUID = 78n
 export const SN10_NETUID = 10n
 export const SN80_NETUID = 80n
-export const FOREVERMONEY_DEPLOYMENT_VERSION = '1.6.0' as const
+export const FOREVERMONEY_DEPLOYMENT_VERSION = '1.6.1' as const
 
 export const foreverMoneyDeployment = Object.freeze({
     version: FOREVERMONEY_DEPLOYMENT_VERSION,
@@ -71,9 +71,8 @@ export const foreverMoneyDeployment = Object.freeze({
             wrappedTao: getAddress(
                 '0xf3081494B87e8D5fb7960f066E931D1D0e6E3d67'
             ),
-            wrappedSn78: getAddress(
-                '0x6e2feEE56bc5F0Db2104Ab1dac2cf1Fb0334eb49'
-            ),
+            // SN78 is released on Base only.
+            wrappedSn78: null,
             wrappedSn10: getAddress(
                 '0xDdDE5965D49e69b6362BD8743e139a45dBFEb7b3'
             ),

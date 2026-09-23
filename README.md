@@ -136,7 +136,7 @@ output; callers cannot weaken that invariant.
 
 ## Bridge Umi (SN78)
 
-Use `asset: 'sn78'` with `evmChain: 'base'` or `'robinhood'`.
+Use `asset: 'sn78'` with `evmChain: 'base'`. SN78 is Base-only; Robinhood routes are rejected.
 SN78 supports staked subnet 78 input and delivery only; liquid conversion is
 rejected. The SDK supplies netuid 78 and rejects a conflicting netuid.
 

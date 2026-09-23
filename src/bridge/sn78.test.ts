@@ -142,39 +142,24 @@ describe('SN78 bridging between Base and Subtensor', () => {
         ).toThrow('whole RAO')
     })
 
-    it('builds Robinhood SN78 plans with its token, gateway and selector', () => {
-        const inbound = buildEvmToSubtensorPlan({
-            ...toFinney,
-            evmChain: 'robinhood',
-            allowanceWei: 0n,
-            exactNetworkFeeWei: 100n,
-        })
-        expect(inbound.action).toBe('bridge.robinhood-to-subtensor')
-        expect(inbound.steps[0]!.transaction.to).toBe(
-            robinhood.contracts.wrappedSn78
-        )
-        expect(inbound.steps[1]!.transaction.to).toBe(
-            robinhood.contracts.gateway
-        )
-        const inboundCall = decodeFunctionData({
-            abi: parseAbi(SPOKE_GATEWAY_ABI),
-            data: inbound.steps[1]!.transaction.data as Hex,
-        })
-        expect(inboundCall.args?.[0]).toBe(robinhood.contracts.wrappedSn78)
-
-        const outbound = buildSubtensorToEvmPlan({
-            ...toBase,
-            evmChain: 'robinhood',
-            stakingAllowanceRao: amountRao,
-            exactNetworkFeeWei: 100n,
-        })
-        expect(outbound.action).toBe('bridge.subtensor-to-robinhood')
-        const outboundCall = decodeFunctionData({
-            abi: parseAbi(ALPHA_GATEWAY_ABI),
-            data: outbound.steps[0]!.transaction.data as Hex,
-        })
-        expect(outboundCall.args?.[0]).toBe(robinhood.ccipSelector)
-        expect(outboundCall.args?.[1]).toBe(subtensor.contracts.wrappedSn78)
+    it('rejects Robinhood SN78 plans in both directions', () => {
+        expect(robinhood.contracts.wrappedSn78).toBeNull()
+        expect(() =>
+            buildEvmToSubtensorPlan({
+                ...toFinney,
+                evmChain: 'robinhood',
+                allowanceWei: 0n,
+                exactNetworkFeeWei: 100n,
+            })
+        ).toThrow('SN78 bridging is not supported on robinhood')
+        expect(() =>
+            buildSubtensorToEvmPlan({
+                ...toBase,
+                evmChain: 'robinhood',
+                stakingAllowanceRao: amountRao,
+                exactNetworkFeeWei: 100n,
+            })
+        ).toThrow('SN78 bridging is not supported on robinhood')
     })
 
     it('quotes the Base SN78 token and estimates only after its approval exists', async () => {

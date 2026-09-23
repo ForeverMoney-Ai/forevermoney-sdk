@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.8
+
+- Restrict SN78 to Base; expose a null Robinhood token and reject unsupported bridge plans in both directions. Base and Subtensor SN78 addresses and other assets remain unchanged.
+- Deployment metadata version 1.6.1.
+
 ## 0.5.7
 
 - Add Umi SN78 on Base, Robinhood and Subtensor, with staked-only subnet 78 approvals and bridge plans.
