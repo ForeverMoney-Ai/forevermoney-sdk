@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.7
+
+- Add Umi SN78 on Base, Robinhood and Subtensor, with staked-only subnet 78 approvals and bridge plans.
+- Extend live integration coverage to SN10 and SN78.
+
 ## 0.5.6 — 2026-09-22
 
 - Add Pareton (SN10) deployment metadata on Base, Robinhood and Subtensor.

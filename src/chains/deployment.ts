@@ -8,9 +8,10 @@ export const ROBINHOOD_CCIP_SELECTOR = 6_180_753_054_346_818_345n
 export const SUBTENSOR_CCIP_SELECTOR = 2_135_107_236_357_186_872n
 export const RAO_PER_TAO = 1_000_000_000n
 export const EVM_WEI_PER_RAO = 1_000_000_000n
+export const SN78_NETUID = 78n
 export const SN10_NETUID = 10n
 export const SN80_NETUID = 80n
-export const FOREVERMONEY_DEPLOYMENT_VERSION = '1.5.0' as const
+export const FOREVERMONEY_DEPLOYMENT_VERSION = '1.6.0' as const
 
 export const foreverMoneyDeployment = Object.freeze({
     version: FOREVERMONEY_DEPLOYMENT_VERSION,
@@ -28,6 +29,9 @@ export const foreverMoneyDeployment = Object.freeze({
             ] as readonly `0x${string}`[],
             wrappedTao: getAddress(
                 '0xf3081494b87e8d5fb7960f066e931d1d0e6e3d67'
+            ),
+            wrappedSn78: getAddress(
+                '0x6e2feEE56bc5F0Db2104Ab1dac2cf1Fb0334eb49'
             ),
             wrappedSn10: getAddress(
                 '0xDdDE5965D49e69b6362BD8743e139a45dBFEb7b3'
@@ -67,6 +71,9 @@ export const foreverMoneyDeployment = Object.freeze({
             wrappedTao: getAddress(
                 '0xf3081494B87e8D5fb7960f066E931D1D0e6E3d67'
             ),
+            wrappedSn78: getAddress(
+                '0x6e2feEE56bc5F0Db2104Ab1dac2cf1Fb0334eb49'
+            ),
             wrappedSn10: getAddress(
                 '0xDdDE5965D49e69b6362BD8743e139a45dBFEb7b3'
             ),
@@ -98,6 +105,9 @@ export const foreverMoneyDeployment = Object.freeze({
             ),
             wrappedTao: getAddress(
                 '0xC5b6C1632d34901239396F5E1BDe54B342900256'
+            ),
+            wrappedSn78: getAddress(
+                '0xF2a747b004fACa8EAB646948117499E25CB8641d'
             ),
             wrappedSn10: getAddress(
                 '0xcd0836D1ecE4AEDf5B39f2792e0790BBE79449b3'

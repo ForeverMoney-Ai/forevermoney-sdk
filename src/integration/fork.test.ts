@@ -49,6 +49,8 @@ describe.skipIf(baseForkRpcUrl === undefined)('Base production fork', () => {
             base.contracts.legacyGateways[0]!,
             base.contracts.wrappedTao,
             base.contracts.wrappedSn80,
+            base.contracts.wrappedSn10,
+            base.contracts.wrappedSn78,
             base.contracts.vaultFactory,
             base.contracts.vaultManagerImplementation,
         ]) {
@@ -145,6 +147,8 @@ describe.skipIf(subtensorForkRpcUrl === undefined)(
                 subtensor.contracts.alphaVault,
                 subtensor.contracts.wrappedTao,
                 subtensor.contracts.wrappedSn80,
+                subtensor.contracts.wrappedSn10,
+                subtensor.contracts.wrappedSn78,
             ]) {
                 expect(await client.getCode({ address })).toBeTruthy()
             }
@@ -235,43 +239,49 @@ describe.skipIf(subtensorForkRpcUrl === undefined)(
 describe.skipIf(
     baseForkRpcUrl === undefined || subtensorForkRpcUrl === undefined
 )('SDK fork transports', () => {
-    it('prepares SN80 transfers using forked EVM state and live Subtensor precompiles', async () => {
-        if (baseForkRpcUrl === undefined || subtensorLiveRpcUrl === undefined)
-            throw new Error(
-                'Base fork and live Subtensor RPC URLs are required.'
+    it.each(['sn80', 'sn10', 'sn78'] as const)(
+        'prepares %s transfers using forked EVM state and live Subtensor precompiles',
+        async (asset) => {
+            if (
+                baseForkRpcUrl === undefined ||
+                subtensorLiveRpcUrl === undefined
             )
-        const client = createForeverMoneyClient({
-            transports: {
-                base: http(baseForkRpcUrl),
-                // Anvil reproduces EVM state but cannot execute Subtensor's
-                // runtime precompiles. Read the production staking allowance
-                // through the live endpoint while all contracts stay read-only.
-                subtensor: http(subtensorLiveRpcUrl),
-            },
-        })
-        await expect(
-            client.bridge.prepareBaseToSubtensor({
-                asset: 'sn80',
-                sender,
-                amountWei: bridgeAmountWei,
-                destination,
-                delivery: 'staked',
+                throw new Error(
+                    'Base fork and live Subtensor RPC URLs are required.'
+                )
+            const client = createForeverMoneyClient({
+                transports: {
+                    base: http(baseForkRpcUrl),
+                    // Anvil reproduces EVM state but cannot execute Subtensor's
+                    // runtime precompiles. Read the production staking allowance
+                    // through the live endpoint while all contracts stay read-only.
+                    subtensor: http(subtensorLiveRpcUrl),
+                },
             })
-        ).resolves.toMatchObject({
-            plan: { action: 'bridge.base-to-subtensor' },
-        })
-        await expect(
-            client.bridge.prepareSubtensorToBase({
-                asset: 'sn80',
-                sender,
-                recipient: sender,
-                amountWei: bridgeAmountWei,
-                source: 'staked',
+            await expect(
+                client.bridge.prepareBaseToSubtensor({
+                    asset,
+                    sender,
+                    amountWei: bridgeAmountWei,
+                    destination,
+                    delivery: 'staked',
+                })
+            ).resolves.toMatchObject({
+                plan: { action: 'bridge.base-to-subtensor' },
             })
-        ).resolves.toMatchObject({
-            plan: { action: 'bridge.subtensor-to-base' },
-        })
-    })
+            await expect(
+                client.bridge.prepareSubtensorToBase({
+                    asset,
+                    sender,
+                    recipient: sender,
+                    amountWei: bridgeAmountWei,
+                    source: 'staked',
+                })
+            ).resolves.toMatchObject({
+                plan: { action: 'bridge.subtensor-to-base' },
+            })
+        }
+    )
     it('accepts the forks without a custom deployment manifest', async () => {
         if (baseForkRpcUrl === undefined || subtensorForkRpcUrl === undefined)
             throw new Error('Fork RPC URLs are required for this test.')

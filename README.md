@@ -134,6 +134,17 @@ The bridge does not deduct its fee from the destination amount. For both
 directions, the SDK encodes the bridge amount itself as the contract's minimum
 output; callers cannot weaken that invariant.
 
+## Bridge Umi (SN78)
+
+Use `asset: 'sn78'` with `evmChain: 'base'` or `'robinhood'`.
+SN78 supports staked subnet 78 input and delivery only; liquid conversion is
+rejected. The SDK supplies netuid 78 and rejects a conflicting netuid.
+
+Canonical `contracts.wrappedSn78` addresses:
+
+- Base and Robinhood: `0x6e2feEE56bc5F0Db2104Ab1dac2cf1Fb0334eb49`
+- Subtensor (964): `0xF2a747b004fACa8EAB646948117499E25CB8641d`
+
 ## Bridge Pareton (SN10)
 
 Use `asset: 'sn10'` with `evmChain: 'base'` or `'robinhood'` in the
