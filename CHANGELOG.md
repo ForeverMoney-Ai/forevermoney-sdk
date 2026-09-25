@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.9
+
+- Add Base-only Ditto SN118 and Affine SN120 token metadata and staked bridge plans.
+- Reject Robinhood routes and wrong-netuid approvals for both assets.
+- Deployment metadata version 1.7.0; public token launch remains separately controlled.
+
 ## 0.5.8
 
 - Restrict SN78 to Base; expose a null Robinhood token and reject unsupported bridge plans in both directions. Base and Subtensor SN78 addresses and other assets remain unchanged.

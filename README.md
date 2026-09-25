@@ -531,3 +531,10 @@ performs one exact estimate. Its callback must quote and estimate the supplied
 candidate and minimum, and must never sign or broadcast. An optional `isActive`
 callback stops obsolete work between requests. `strandedStakeSource(error)`
 decodes nested RPC/ethers/viem errors for UI error messages.
+
+## Base-only SN118 and SN120
+
+Use `asset: 'sn118'` (Ditto) or `asset: 'sn120'` (Affine) with
+`evmChain: 'base'`. Both support staked subnet input and delivery only.
+Robinhood routes are rejected. SDK metadata and plan support do not publish a
+market or establish that an on-chain bridge lane has been activated.

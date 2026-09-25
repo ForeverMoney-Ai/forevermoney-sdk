@@ -8,10 +8,12 @@ export const ROBINHOOD_CCIP_SELECTOR = 6_180_753_054_346_818_345n
 export const SUBTENSOR_CCIP_SELECTOR = 2_135_107_236_357_186_872n
 export const RAO_PER_TAO = 1_000_000_000n
 export const EVM_WEI_PER_RAO = 1_000_000_000n
+export const SN118_NETUID = 118n
+export const SN120_NETUID = 120n
 export const SN78_NETUID = 78n
 export const SN10_NETUID = 10n
 export const SN80_NETUID = 80n
-export const FOREVERMONEY_DEPLOYMENT_VERSION = '1.6.1' as const
+export const FOREVERMONEY_DEPLOYMENT_VERSION = '1.7.0' as const
 
 export const foreverMoneyDeployment = Object.freeze({
     version: FOREVERMONEY_DEPLOYMENT_VERSION,
@@ -29,6 +31,12 @@ export const foreverMoneyDeployment = Object.freeze({
             ] as readonly `0x${string}`[],
             wrappedTao: getAddress(
                 '0xf3081494b87e8d5fb7960f066e931d1d0e6e3d67'
+            ),
+            wrappedSn118: getAddress(
+                '0x214f4ddf57fa560eda4c349149f337cd61c98bfb'
+            ),
+            wrappedSn120: getAddress(
+                '0x9470ef4e54520f0369ac850e239205bacf27008a'
             ),
             wrappedSn78: getAddress(
                 '0x6e2feEE56bc5F0Db2104Ab1dac2cf1Fb0334eb49'
@@ -72,6 +80,8 @@ export const foreverMoneyDeployment = Object.freeze({
                 '0xf3081494B87e8D5fb7960f066E931D1D0e6E3d67'
             ),
             // SN78 is released on Base only.
+            wrappedSn118: null,
+            wrappedSn120: null,
             wrappedSn78: null,
             wrappedSn10: getAddress(
                 '0xDdDE5965D49e69b6362BD8743e139a45dBFEb7b3'
@@ -104,6 +114,12 @@ export const foreverMoneyDeployment = Object.freeze({
             ),
             wrappedTao: getAddress(
                 '0xC5b6C1632d34901239396F5E1BDe54B342900256'
+            ),
+            wrappedSn118: getAddress(
+                '0xf1d7e9a6c7f7cae56d63b324fee25a8f86b85345'
+            ),
+            wrappedSn120: getAddress(
+                '0x87d596dd0694fef49859020d4e0e9f30631fa860'
             ),
             wrappedSn78: getAddress(
                 '0xF2a747b004fACa8EAB646948117499E25CB8641d'
