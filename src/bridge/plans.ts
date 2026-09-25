@@ -22,11 +22,6 @@ import {
 } from '../core/amounts.js'
 import {
     EVM_WEI_PER_RAO,
-    SN80_NETUID,
-    SN10_NETUID,
-    SN78_NETUID,
-    SN118_NETUID,
-    SN120_NETUID,
     foreverMoneyDeployment,
     getForeverMoneyEvmDeployment,
     type ForeverMoneyEvmChain,
@@ -67,7 +62,7 @@ function resolveDestinationGasLimit(value?: bigint): bigint {
 }
 export type SubtensorDelivery = 'liquid' | 'staked'
 export type SubtensorSource = 'liquid' | 'staked'
-export type BridgeAsset = 'tao' | 'sn80' | 'sn10' | 'sn78' | 'sn118' | 'sn120'
+export type BridgeAsset = 'tao' | `sn${number}`
 /**
  * Optional partner (integrator) fee, charged ON TOP of the bridged amount and
  * paid to `recipient` on the source chain. The full `amountWei` still crosses.
@@ -211,33 +206,31 @@ function bridgeAsset(
     evmChain: ForeverMoneyEvmChain,
     asset: BridgeAsset = 'tao'
 ) {
-    if (
-        asset !== 'tao' &&
-        asset !== 'sn80' &&
-        asset !== 'sn10' &&
-        asset !== 'sn78' &&
-        asset !== 'sn118' &&
-        asset !== 'sn120'
-    ) {
+    if (asset !== 'tao' && !/^sn[1-9]\d*$/.test(asset)) {
         throw new ForeverMoneyError(
             'INVALID_TRANSACTION_PLAN',
-            'Asset must be "tao", "sn80", "sn10", "sn78", "sn118", or "sn120".'
+            'Asset must be "tao" or a configured subnet token such as "sn80".'
         )
     }
     const evm = getForeverMoneyEvmDeployment(evmChain)
-    const tokenKey =
-        asset === 'sn118'
-            ? 'wrappedSn118'
-            : asset === 'sn120'
-              ? 'wrappedSn120'
-              : asset === 'sn78'
-                ? 'wrappedSn78'
-                : asset === 'sn10'
-                  ? 'wrappedSn10'
-                  : 'wrappedSn80'
+    const tokenKey = `wrappedSn${asset.slice(2)}`
     const evmToken =
-        asset === 'tao' ? evm.contracts.wrappedTao : evm.contracts[tokenKey]
-    if (!evmToken) {
+        asset === 'tao'
+            ? evm.contracts.wrappedTao
+            : (
+                  evm.contracts as unknown as Record<
+                      string,
+                      `0x${string}` | null
+                  >
+              )[tokenKey]
+    const subtensorToken =
+        asset === 'tao'
+            ? foreverMoneyDeployment.subtensor.contracts.wrappedTao
+            : (
+                  foreverMoneyDeployment.subtensor
+                      .contracts as unknown as Record<string, `0x${string}`>
+              )[tokenKey]
+    if (!evmToken || !subtensorToken) {
         throw new ForeverMoneyError(
             'INVALID_TRANSACTION_PLAN',
             `${asset.toUpperCase()} bridging is not supported on ${evmChain}.`
@@ -246,8 +239,7 @@ function bridgeAsset(
     return asset !== 'tao'
         ? {
               evmToken,
-              subtensorToken:
-                  foreverMoneyDeployment.subtensor.contracts[tokenKey],
+              subtensorToken,
               label: asset.toUpperCase(),
               wrappedLabel: asset.toUpperCase(),
           }
@@ -263,34 +255,19 @@ function assertAssetMode(
     asset: BridgeAsset | undefined,
     mode: SubtensorSource
 ): void {
-    if (
-        (asset === 'sn80' ||
-            asset === 'sn10' ||
-            asset === 'sn78' ||
-            asset === 'sn118' ||
-            asset === 'sn120') &&
-        mode !== 'staked'
-    ) {
+    if (asset && /^sn[1-9]\d*$/.test(asset) && mode !== 'staked') {
         throw new ForeverMoneyError(
             'INVALID_TRANSACTION_PLAN',
-            `${asset.toUpperCase()} bridging requires staked subnet ${asset === 'sn118' ? SN118_NETUID : asset === 'sn120' ? SN120_NETUID : asset === 'sn78' ? SN78_NETUID : asset === 'sn10' ? SN10_NETUID : SN80_NETUID} input or delivery; liquid TAO conversion is not supported.`
+            `${asset.toUpperCase()} bridging requires staked subnet ${BigInt(asset.slice(2))} input or delivery; liquid TAO conversion is not supported.`
         )
     }
 }
 function sourceNetuid(input: SubtensorToEvmRequest): bigint | undefined {
     if (input.source !== 'staked') return undefined
     const assetNetuid =
-        input.asset === 'sn118'
-            ? SN118_NETUID
-            : input.asset === 'sn120'
-              ? SN120_NETUID
-              : input.asset === 'sn78'
-                ? SN78_NETUID
-                : input.asset === 'sn10'
-                  ? SN10_NETUID
-                  : input.asset === 'sn80'
-                    ? SN80_NETUID
-                    : undefined
+        input.asset && /^sn[1-9]\d*$/.test(input.asset)
+            ? BigInt(input.asset.slice(2))
+            : undefined
     const netuid = input.netuid ?? assetNetuid
     if (netuid === undefined) {
         throw new ForeverMoneyError(
