@@ -10,6 +10,7 @@ import {
     EVM_TO_SUBTENSOR_DESTINATION_GAS_LIMIT,
     EVM_WEI_PER_RAO,
     MAX_PARTNER_FEE_BPS,
+    MIN_LIQUID_SUBTENSOR_TO_EVM_WEI,
     buildBaseToSubtensorPlan,
     buildEvmToSubtensorPlan,
     buildSubtensorToBasePlan,
@@ -338,7 +339,95 @@ describe('Subtensor to EVM with a partner fee', () => {
             }
         )
         expect(liquid.partnerFeeWei).toBe(10n ** 18n)
+        expect(liquid.partnerFeeWaived).toBe(false)
         expect(liquid.transactionValueWei).toBe(hundred + 10n ** 18n + 714n)
+    })
+})
+
+describe('liquid partner fee below the 0.002 TAO minimum stake', () => {
+    const tenthTao = 10n ** 17n // 1% top-up = 0.001 TAO, below the minimum
+    const fifthTao = 2n * 10n ** 17n // 1% top-up = 0.002 TAO, exactly the minimum
+
+    it('waives the fee and uses the zero-fee entrypoint', () => {
+        expect(partnerFeeTaoTopUp(tenthTao, 100)).toBeLessThan(
+            MIN_LIQUID_SUBTENSOR_TO_EVM_WEI
+        )
+        const plan = buildSubtensorToBasePlan({
+            sender,
+            recipient,
+            amountWei: tenthTao,
+            source: 'liquid',
+            exactNetworkFeeWei: 100n,
+            partnerFee,
+        })
+        const call = decode(alpha, plan.steps[0]!.transaction.data)
+        expect(call.functionName).toBe('bridgeOut')
+        expect(plan.steps[0]!.transaction.value).toBe(
+            (tenthTao + 102n).toString()
+        )
+        expect(plan.summary).not.toContain('Partner fee')
+    })
+
+    it('charges the fee once the top-up reaches the minimum', () => {
+        expect(partnerFeeTaoTopUp(fifthTao, 100)).toBe(
+            MIN_LIQUID_SUBTENSOR_TO_EVM_WEI
+        )
+        const plan = buildSubtensorToBasePlan({
+            sender,
+            recipient,
+            amountWei: fifthTao,
+            source: 'liquid',
+            exactNetworkFeeWei: 100n,
+            partnerFee,
+        })
+        const call = decode(alpha, plan.steps[0]!.transaction.data)
+        expect(call.functionName).toBe('bridgeOutWithFee')
+        expect(plan.steps[0]!.transaction.value).toBe(
+            (fifthTao + MIN_LIQUID_SUBTENSOR_TO_EVM_WEI + 102n).toString()
+        )
+    })
+
+    it('never waives a staked-source fee', () => {
+        const amountRao = tenthTao / EVM_WEI_PER_RAO
+        const plan = buildSubtensorToBasePlan({
+            sender,
+            recipient,
+            amountWei: tenthTao,
+            source: 'staked',
+            netuid: 0n,
+            stakingAllowanceRao: amountRao * 2n,
+            exactNetworkFeeWei: 100n,
+            partnerFee,
+        })
+        const call = decode(alpha, plan.steps[0]!.transaction.data)
+        expect(call.functionName).toBe('bridgeOutWithFee')
+    })
+
+    it('prepare quotes and estimates without the fee and reports it as waived', async () => {
+        const readContract = vi.fn(async ({ functionName }) => {
+            if (functionName === 'quoteBridgeOut') return 700n
+            throw new Error(`unexpected ${functionName}`)
+        })
+        const estimateGas = vi.fn(async ({ data, value }) => {
+            expect(decode(alpha, data).functionName).toBe('bridgeOut')
+            expect(value).toBe(tenthTao + 714n)
+            return 100n
+        })
+        const prepared = await prepareSubtensorToEvm(
+            { readContract, estimateGas } as unknown as PublicClient,
+            {
+                evmChain: 'base',
+                sender,
+                recipient,
+                amountWei: tenthTao,
+                source: 'liquid',
+                partnerFee,
+            }
+        )
+        expect(prepared.partnerFeeWaived).toBe(true)
+        expect(prepared.partnerFeeWei).toBe(0n)
+        expect(prepared.transactionValueWei).toBe(tenthTao + 714n)
+        expect(estimateGas).toHaveBeenCalledOnce()
     })
 })
 

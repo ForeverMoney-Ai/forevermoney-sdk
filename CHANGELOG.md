@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.10
+
+- Waive a liquid Subtensor-source partner fee whose TAO top-up would fall below Subtensor's 0.002 TAO minimum stake. The gateway stakes that top-up in its own `addStake` call, so such a fee reverted the whole bridge; the SDK now bridges with no partner fee instead (zero-fee `bridgeOut`). Staked and EVM-source fees are unchanged.
+- Add `partnerFeeWaived` to bridge preparations.
+
 ## 0.5.9
 
 - Add Base-only Ditto SN118 and Affine SN120 token metadata and staked bridge plans.

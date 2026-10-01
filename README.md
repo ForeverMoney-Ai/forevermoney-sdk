@@ -270,6 +270,29 @@ the fee at `maxIntegratorFeeBps` (1% at deployment, governance can raise it to
 10%); `prepare*` reads the cap and throws `INVALID_PARTNER_FEE` when `bps`
 exceeds it. The recipient must not be the zero address or the gateway.
 
+**Small liquid bridges from Subtensor are not charged a fee.** On a liquid
+Subtensor source the gateway stakes the partner's TAO top-up in its own
+`addStake` call, and Subtensor rejects any stake below 0.002 TAO (2,000,000
+RAO). That would revert the whole bridge, so when `partnerFeeTaoTopUp(amount,
+bps)` is below 0.002 TAO the SDK bridges with **no partner fee** instead: it uses
+the zero-fee `bridgeOut` entrypoint, `partnerFeeWei` is `0`, and the
+preparation's `partnerFeeWaived` is `true`. A fee is charged once the amount
+reaches `0.002 TAO × 10 000 / bps`, for example 0.2 TAO at 100 bps (1%) or 2
+TAO at 10 bps. Staked Subtensor sources and EVM sources are never waived; their
+fee is moved with the bridged amount and has no separate minimum.
+
+```ts
+const prepared = await foreverMoney.bridge.prepareSubtensorToBase({
+    sender: '0x...',
+    recipient: '0x...',
+    amountWei: 10n ** 17n, // 0.1 TAO: a 1% fee would be 0.001 TAO
+    source: 'liquid',
+    partnerFee: { recipient: '0xYourTreasury', bps: 100 },
+})
+prepared.partnerFeeWaived // true
+prepared.partnerFeeWei // 0n
+```
+
 ## Track bridge delivery
 
 Capture the destination block immediately before broadcasting the source bridge
