@@ -139,9 +139,15 @@ export interface BridgePreparation {
     /**
      * Extra the sender pays for the partner fee, in the units of the source leg:
      * token wei for an EVM source, alpha (as 18-decimal wei) for a staked source,
-     * TAO wei for a liquid source. Zero when no partner fee is set.
+     * TAO wei for a liquid source. Zero when no partner fee is set or it was waived.
      */
     readonly partnerFeeWei: bigint
+    /**
+     * True when a partner fee was requested but not charged: on a liquid Subtensor
+     * source the TAO top-up would fall below Subtensor's 0.002 TAO minimum stake,
+     * which would revert the whole bridge, so the plan bridges with no fee instead.
+     */
+    readonly partnerFeeWaived: boolean
     readonly plan: TransactionPlan
 }
 interface ResolvedPartnerFee {
@@ -192,6 +198,23 @@ export function partnerFeeTaoTopUp(taoAmount: bigint, bps: number): bigint {
     const raw = partnerFeeCut(taoAmount, bps)
     if (raw === 0n) return 0n
     return ((raw + EVM_WEI_PER_RAO - 1n) / EVM_WEI_PER_RAO) * EVM_WEI_PER_RAO
+}
+/**
+ * A liquid Subtensor source stakes the partner's TAO top-up in its own `addStake`
+ * call, and Subtensor rejects any stake below 2,000,000 RAO (0.002 TAO). Rather
+ * than let the whole bridge revert, waive a fee whose top-up would fall below
+ * that minimum and bridge with no partner fee.
+ */
+function hubPartnerFee(
+    fee: ResolvedPartnerFee,
+    source: SubtensorSource,
+    amountWei: bigint
+): { fee: ResolvedPartnerFee; waived: boolean } {
+    if (fee.bps === 0 || source !== 'liquid') return { fee, waived: false }
+    const topUp = partnerFeeTaoTopUp(amountWei, fee.bps)
+    return topUp < MIN_LIQUID_SUBTENSOR_TO_EVM_WEI
+        ? { fee: NO_PARTNER_FEE, waived: true }
+        : { fee, waived: false }
 }
 function assertPartnerFeeAllowed(fee: ResolvedPartnerFee, maxBps: number) {
     if (fee.bps > maxBps) {
@@ -709,9 +732,10 @@ export function buildSubtensorToEvmPlan(
     assertNonNegativeAmount(input.exactNetworkFeeWei, 'Network fee')
     const { subtensor } = foreverMoneyDeployment
     const evm = getForeverMoneyEvmDeployment(input.evmChain)
-    const partnerFee = resolvePartnerFee(
-        input.partnerFee,
-        subtensor.contracts.gateway
+    const { fee: partnerFee } = hubPartnerFee(
+        resolvePartnerFee(input.partnerFee, subtensor.contracts.gateway),
+        input.source,
+        input.amountWei
     )
     const amountRao = input.amountWei / EVM_WEI_PER_RAO
     // Charged on top: extra alpha for a staked source, extra TAO for a liquid one.
@@ -890,6 +914,7 @@ export async function prepareEvmToSubtensor(
         exactNetworkFeeWei,
         transactionValueWei: feeWithBuffer(exactNetworkFeeWei),
         partnerFeeWei: cut,
+        partnerFeeWaived: false,
         plan,
     })
 }
@@ -913,9 +938,10 @@ async function prepareSubtensorToEvmExact(
     const minAmountOutWei = minimumSubtensorOutput(input)
     const { subtensor } = foreverMoneyDeployment
     const evm = getForeverMoneyEvmDeployment(input.evmChain)
-    const partnerFee = resolvePartnerFee(
-        input.partnerFee,
-        subtensor.contracts.gateway
+    const { fee: partnerFee, waived: partnerFeeWaived } = hubPartnerFee(
+        resolvePartnerFee(input.partnerFee, subtensor.contracts.gateway),
+        input.source,
+        input.amountWei
     )
     const taoAmount = input.source === 'liquid' ? input.amountWei : 0n
     const stakedAlphaRao =
@@ -994,6 +1020,7 @@ async function prepareSubtensorToEvmExact(
             input.source === 'liquid'
                 ? taoTopUp
                 : alphaTopUpRao * EVM_WEI_PER_RAO,
+        partnerFeeWaived,
         plan,
     })
 }
