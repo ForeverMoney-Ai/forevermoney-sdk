@@ -561,3 +561,10 @@ Use `asset: 'sn118'` (Ditto) or `asset: 'sn120'` (Affine) with
 `evmChain: 'base'`. Both support staked subnet input and delivery only.
 Robinhood routes are rejected. SDK metadata and plan support do not publish a
 market or establish that an on-chain bridge lane has been activated.
+
+## SN8 (Vanta)
+
+Use `asset: 'sn8'` with `evmChain: 'base'` or `evmChain: 'robinhood'`.
+Vanta supports staked subnet input and delivery only. SDK metadata and plan
+support do not publish a market or establish that an on-chain bridge lane has
+been activated.

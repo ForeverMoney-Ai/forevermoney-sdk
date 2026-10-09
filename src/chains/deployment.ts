@@ -13,6 +13,7 @@ export const SN120_NETUID = 120n
 export const SN78_NETUID = 78n
 export const SN10_NETUID = 10n
 export const SN80_NETUID = 80n
+export const SN8_NETUID = 8n
 export const FOREVERMONEY_DEPLOYMENT_VERSION = '1.7.0' as const
 
 export const foreverMoneyDeployment = Object.freeze({
@@ -46,6 +47,9 @@ export const foreverMoneyDeployment = Object.freeze({
             ),
             wrappedSn80: getAddress(
                 '0x6f63d869011f95274498023b4abfc00b30c34378'
+            ),
+            wrappedSn8: getAddress(
+                '0xF1a8A3604898A4b0204A208df2955eD3428AABc5'
             ),
             ccipRouter: getAddress(
                 '0x881e3A65B4d4a04dD529061dd0071cf975F58bCD'
@@ -89,6 +93,9 @@ export const foreverMoneyDeployment = Object.freeze({
             wrappedSn80: getAddress(
                 '0x6f63d869011f95274498023b4abfc00b30c34378'
             ),
+            wrappedSn8: getAddress(
+                '0xF1a8A3604898A4b0204A208df2955eD3428AABc5'
+            ),
             ccipRouter: getAddress(
                 '0x06fC836cf9839B1cd891C440A0a45242DA6Ae1c9'
             ),
@@ -129,6 +136,9 @@ export const foreverMoneyDeployment = Object.freeze({
             ),
             wrappedSn80: getAddress(
                 '0xfD628dE75EF96f0A5C59659159C6cA81E0DC2222'
+            ),
+            wrappedSn8: getAddress(
+                '0x9066B1bfE9ff6A053FEC4C2e63d532ccD47FDbAd'
             ),
             ccipRouter: getAddress(
                 '0xD941fBEcD2b971d0F54b4C34286C95faB52B60B8'

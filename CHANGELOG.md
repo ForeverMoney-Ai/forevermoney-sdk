@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.11
+
+- Add Vanta SN8 token metadata on Base, Robinhood and Subtensor, with staked bridge plans in both directions on both EVM chains.
+- Export `SN8_NETUID`. Public token launch remains separately controlled.
+
 ## 0.5.10
 
 - Waive a liquid Subtensor-source partner fee whose TAO top-up would fall below Subtensor's 0.002 TAO minimum stake. The gateway stakes that top-up in its own `addStake` call, so such a fee reverted the whole bridge; the SDK now bridges with no partner fee instead (zero-fee `bridgeOut`). Staked and EVM-source fees are unchanged.
