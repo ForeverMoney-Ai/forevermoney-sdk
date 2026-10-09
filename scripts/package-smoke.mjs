@@ -29,6 +29,7 @@ const expectedExports = [
     'SN120_NETUID',
     'SN78_NETUID',
     'SN80_NETUID',
+    'SN8_NETUID',
     'SUBTENSOR_CCIP_SELECTOR',
     'SUBTENSOR_CHAIN_ID',
     'assertWholeRao',
