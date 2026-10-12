@@ -1,6 +1,9 @@
 import { base58, base64 } from '@scure/base'
 import { bytesToHex } from 'viem'
-import { foreverMoneyDeployment } from '../chains/deployment.js'
+import {
+    EVM_WEI_PER_RAO,
+    foreverMoneyDeployment,
+} from '../chains/deployment.js'
 import { ForeverMoneyError } from '../core/errors.js'
 import {
     getSolanaAssociatedTokenAddress,
@@ -16,6 +19,8 @@ const COMMITMENT = 'confirmed'
 const EXECUTION_STATE_CHANGED = 'b9b08c70ef4e1ff9'
 // discriminator | sourceChainSelector u64 | sequenceNumber u64 | messageId | messageHash | state u8
 const EXECUTION_STATE_CHANGED_BYTES = 8 + 8 + 8 + 32 + 32 + 1
+// sha256("event:CCIPMessageSent")[0..8], emitted by the router on send.
+const CCIP_MESSAGE_SENT = '174d49b77bb97339'
 const EXECUTION_STATE_SUCCESS = 2
 const EXECUTION_STATE_FAILURE = 3
 const SIGNATURE_PAGE_SIZE = 100
@@ -192,15 +197,17 @@ export interface SolanaDeliveryStatusRequest {
 }
 
 /**
- * The CCIP off-ramp's ExecutionStateChanged states for `messageId` in one
- * transaction, oldest first. Only events the off-ramp program itself emitted
- * count: another program in the same transaction could log identical bytes.
+ * Anchor events `program` itself emitted in a transaction, oldest first, with
+ * the given discriminator. Events logged while another program is executing
+ * are skipped: any program in the same transaction could log identical bytes.
  */
-function executionStates(logs: readonly string[], messageId: string): number[] {
-    const { ccipOffRamp } = foreverMoneyDeployment.solana.contracts
-    const sourceSelector = foreverMoneyDeployment.subtensor.ccipSelector
+function programEvents(
+    logs: readonly string[],
+    program: string,
+    discriminator: string
+): Uint8Array[] {
     const stack: string[] = []
-    const states: number[] = []
+    const events: Uint8Array[] = []
     for (const line of logs) {
         const invoke = /^Program (\w+) invoke \[\d+\]$/.exec(line)
         if (invoke) {
@@ -211,7 +218,7 @@ function executionStates(logs: readonly string[], messageId: string): number[] {
             stack.pop()
             continue
         }
-        if (!line.startsWith('Program data: ') || stack.at(-1) !== ccipOffRamp)
+        if (!line.startsWith('Program data: ') || stack.at(-1) !== program)
             continue
         let data: Uint8Array
         try {
@@ -219,17 +226,45 @@ function executionStates(logs: readonly string[], messageId: string): number[] {
         } catch {
             continue
         }
-        if (
-            data.length !== EXECUTION_STATE_CHANGED_BYTES ||
-            bytesToHex(data.subarray(0, 8)).slice(2) !== EXECUTION_STATE_CHANGED
-        )
-            continue
-        const view = new DataView(data.buffer, data.byteOffset, data.length)
-        if (view.getBigUint64(8, true) !== sourceSelector) continue
-        if (bytesToHex(data.subarray(24, 56)) !== messageId) continue
-        states.push(data[88]!)
+        if (bytesToHex(data.subarray(0, 8)).slice(2) === discriminator)
+            events.push(data)
     }
-    return states
+    return events
+}
+
+/** The off-ramp's execution states for `messageId` in one transaction, oldest first. */
+function executionStates(logs: readonly string[], messageId: string): number[] {
+    const { ccipOffRamp } = foreverMoneyDeployment.solana.contracts
+    const sourceSelector = foreverMoneyDeployment.subtensor.ccipSelector
+    return programEvents(logs, ccipOffRamp, EXECUTION_STATE_CHANGED)
+        .filter(
+            (data) =>
+                data.length === EXECUTION_STATE_CHANGED_BYTES &&
+                readU64(data, 8) === sourceSelector &&
+                bytesToHex(data.subarray(24, 56)) === messageId
+        )
+        .map((data) => data[88]!)
+}
+
+function readU64(data: Uint8Array, offset: number): bigint {
+    return new DataView(data.buffer, data.byteOffset, data.length).getBigUint64(
+        offset,
+        true
+    )
+}
+
+/**
+ * The CCIP message ID of a Solana send to Subtensor, from the router's
+ * CCIPMessageSent event; null when the logs hold no such send.
+ */
+export function solanaSendMessageId(logs: readonly string[]): string | null {
+    const { ccipRouter } = foreverMoneyDeployment.solana.contracts
+    const destination = foreverMoneyDeployment.subtensor.ccipSelector
+    // discriminator | destChainSelector u64 | sequenceNumber u64 | message (header.messageId first)
+    const event = programEvents(logs, ccipRouter, CCIP_MESSAGE_SENT).find(
+        (data) => data.length >= 56 && readU64(data, 8) === destination
+    )
+    return event ? bytesToHex(event.subarray(24, 56)) : null
 }
 
 async function transactionLogs(
@@ -319,4 +354,125 @@ function normalizeSolanaSignature(value: string): string {
         )
     }
     return base58.encode(bytes)
+}
+
+export interface SolanaSourceStatusRequest {
+    readonly signature: string
+}
+
+export type SolanaSourceStatus =
+    | {
+          readonly signature: string
+          readonly status: 'confirmed'
+          readonly messageId: string
+      }
+    | {
+          readonly signature: string
+          readonly status: 'failed' | 'pending'
+          readonly messageId: null
+      }
+
+/**
+ * Status of a Solana-to-Subtensor send and, once confirmed, its CCIP message
+ * ID. Searches the full history, so a send whose confirmation timed out in
+ * the wallet is still found: check this before ever re-sending.
+ */
+export async function getSolanaSourceStatus(
+    transport: RpcTransport,
+    input: SolanaSourceStatusRequest
+): Promise<SolanaSourceStatus> {
+    const signature = normalizeSolanaSignature(input.signature)
+    const result = await transport.request({
+        method: 'getSignatureStatuses',
+        params: [[signature], { searchTransactionHistory: true }],
+    })
+    if (!isRecord(result) || !Array.isArray(result.value)) {
+        throw invalidResponse(
+            'Solana getSignatureStatuses returned an invalid result.'
+        )
+    }
+    const status = result.value[0]
+    if (
+        status == null ||
+        !isRecord(status) ||
+        (status.confirmationStatus !== 'confirmed' &&
+            status.confirmationStatus !== 'finalized')
+    ) {
+        return Object.freeze({ signature, status: 'pending', messageId: null })
+    }
+    if (status.err != null) {
+        return Object.freeze({ signature, status: 'failed', messageId: null })
+    }
+    const messageId = solanaSendMessageId(
+        await transactionLogs(transport, signature)
+    )
+    if (messageId === null) {
+        throw invalidResponse(
+            'The confirmed Solana transaction holds no CCIP send to Subtensor.'
+        )
+    }
+    return Object.freeze({ signature, status: 'confirmed', messageId })
+}
+
+export interface SolanaWalletBalancesRequest {
+    readonly owner: string
+    readonly asset?: BridgeAsset
+}
+
+export interface SolanaWalletBalances {
+    /** Native SOL, which pays the CCIP fee and the transaction. */
+    readonly lamports: bigint
+    readonly tokenAccount: string
+    /** The asset balance in 18-decimal wei (Solana units × 1e9); 0 without an account. */
+    readonly tokenWei: bigint
+}
+
+/** SOL and asset balances of a Solana wallet, for a Solana-to-Subtensor send. */
+export async function getSolanaWalletBalances(
+    transport: RpcTransport,
+    input: SolanaWalletBalancesRequest
+): Promise<SolanaWalletBalances> {
+    const owner = normalizeSolanaWallet(input.owner)
+    const { mint } = solanaBridgeAsset(input.asset)
+    const tokenAccount = getSolanaAssociatedTokenAddress(owner, mint)
+    const [balance, account] = await Promise.all([
+        transport.request({
+            method: 'getBalance',
+            params: [owner, { commitment: COMMITMENT }],
+        }),
+        transport.request({
+            method: 'getAccountInfo',
+            params: [
+                tokenAccount,
+                { encoding: 'jsonParsed', commitment: COMMITMENT },
+            ],
+        }),
+    ])
+    if (!isRecord(balance) || typeof balance.value !== 'number') {
+        throw invalidResponse('Solana getBalance returned an invalid result.')
+    }
+    if (!isRecord(account) || !('value' in account)) {
+        throw invalidResponse(
+            'Solana getAccountInfo returned an invalid result.'
+        )
+    }
+    let tokenUnits = 0n
+    if (account.value !== null) {
+        const amount = (
+            account.value as {
+                data?: {
+                    parsed?: { info?: { tokenAmount?: { amount?: unknown } } }
+                }
+            }
+        ).data?.parsed?.info?.tokenAmount?.amount
+        if (typeof amount !== 'string' || !/^\d+$/.test(amount)) {
+            throw invalidResponse('Solana token account data is invalid.')
+        }
+        tokenUnits = BigInt(amount)
+    }
+    return Object.freeze({
+        lamports: BigInt(balance.value),
+        tokenAccount,
+        tokenWei: tokenUnits * EVM_WEI_PER_RAO,
+    })
 }

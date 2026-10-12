@@ -6,6 +6,7 @@
 - `client.bridge.prepareSubtensorToSolana` requires a `solana` transport and throws `SOLANA_TOKEN_ACCOUNT_MISSING` until the recipient's associated token account exists. `buildCreateSolanaTokenAccountInstruction` builds an idempotent create instruction any wallet can pay for.
 - Solana recipients must be wallets: token accounts and other off-curve addresses are rejected (`INVALID_SOLANA_ADDRESS`). Partner fees are rejected on this route; the gateway has no SVM fee path.
 - Track Solana delivery with `getSolanaDeliveryCheckpoint` / `getSolanaDeliveryStatus`, which read the CCIP off-ramp's execution events on the recipient's token account. `getSourceStatus` and `bridgeMessageIdFromReceipt` accept `subtensor-to-solana`.
+- Add the return lane, Solana to Subtensor. `buildSolanaToSubtensorMessage` builds the CCIP message (receiver = the V7 gateway, exit payload, 3,000,000 destination gas, out-of-order) for `@chainlink/ccip-sdk`'s `SolanaChain.getFee` / `generateUnsignedSendMessage`; an EVM fallback address is required. `getSolanaSourceStatus` resolves the send and its message ID from the full signature history (never re-send blindly), `getSolanaWalletBalances` reads SOL and token balances, and `getCcipDeliveryStatus` tracks `solana-to-subtensor`, reporting recovery from the V7 gateway.
 - Subtensor bridge-out plans for every destination now share one implementation. Deployment metadata version 1.8.0.
 
 ## 0.5.11

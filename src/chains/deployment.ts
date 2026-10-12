@@ -122,6 +122,7 @@ export const foreverMoneyDeployment = Object.freeze({
             tokenProgram: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
             associatedTokenProgram:
                 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL',
+            ccipRouter: 'Ccip842gzYHhvdDkSyi2YVCoAWPbYJoApMFzSxQroE9C',
             ccipOffRamp: 'offqSMQWgQud6WJz694LRzkeN5kMYpCHTpXQr3Rkcjm',
         }),
     }),
@@ -173,6 +174,9 @@ export const foreverMoneyDeployment = Object.freeze({
                 '0x51a6150400ed9F0Ae240F5D1b15E3b45Fc4339C7'
             ),
             ccipOffRampFromRobinhood: getAddress(
+                '0x51a6150400ed9F0Ae240F5D1b15E3b45Fc4339C7'
+            ),
+            ccipOffRampFromSolana: getAddress(
                 '0x51a6150400ed9F0Ae240F5D1b15E3b45Fc4339C7'
             ),
             stakingPrecompile: getAddress(

@@ -3,7 +3,13 @@ import {
     type StakeRoundingOptions,
     type StakeRoundingResult,
 } from './stake-rounding.js'
-import { encodeFunctionData, parseAbi, type PublicClient } from 'viem'
+import {
+    encodeAbiParameters,
+    encodeFunctionData,
+    parseAbi,
+    parseAbiParameters,
+    type PublicClient,
+} from 'viem'
 import {
     ALPHA_GATEWAY_ABI,
     ERC20_ABI,
@@ -45,6 +51,10 @@ const erc20Abi = parseAbi(ERC20_ABI)
 const spokeAbi = parseAbi(SPOKE_GATEWAY_ABI)
 const alphaAbi = parseAbi(ALPHA_GATEWAY_ABI)
 const stakingAbi = parseAbi(STAKING_ABI)
+// AlphaGateway's ExitPayload: abi.encode(ss58, evmFallback, wantLiquid, minTaoOut).
+const EXIT_PAYLOAD = parseAbiParameters(
+    'bytes32 ss58, address evmFallback, bool wantLiquid, uint256 minTaoOut'
+)
 export const MIN_LIQUID_EVM_TO_SUBTENSOR_WEI = 10000000000000000n
 export const MIN_LIQUID_BASE_TO_SUBTENSOR_WEI = MIN_LIQUID_EVM_TO_SUBTENSOR_WEI
 // Subtensor's minimum new stake is 2,000,000 RAO (0.002 TAO).
@@ -434,6 +444,23 @@ type ExitParams = {
     wantLiquid: boolean
     minTaoOut: bigint
 }
+/**
+ * The gateway's exit payload for a delivery to Subtensor: the destination
+ * coldkey, who can claim if delivery fails, and staked or liquid delivery.
+ */
+function exitParams(
+    destination: string,
+    evmFallback: `0x${string}`,
+    delivery: SubtensorDelivery,
+    amountWei: bigint
+): ExitParams {
+    return {
+        ss58: ss58ToPublicKey(destination),
+        evmFallback,
+        wantLiquid: delivery === 'liquid',
+        minTaoOut: amountWei,
+    }
+}
 function partnerFeeSummary(
     charged: bigint,
     unit: string,
@@ -693,12 +720,12 @@ export function buildEvmToSubtensorPlan(
         input.destinationGasLimit
     )
     const destination = normalizeSS58(input.destination)
-    const exit = {
-        ss58: ss58ToPublicKey(destination),
-        evmFallback: sender,
-        wantLiquid: input.delivery === 'liquid',
-        minTaoOut: input.amountWei,
-    }
+    const exit = exitParams(
+        destination,
+        sender,
+        input.delivery,
+        input.amountWei
+    )
     const evm = getForeverMoneyEvmDeployment(input.evmChain)
     const partnerFee = resolvePartnerFee(
         input.partnerFee,
@@ -1020,12 +1047,12 @@ export async function prepareEvmToSubtensor(
     )
     const destination = normalizeSS58(input.destination)
     const evm = getForeverMoneyEvmDeployment(input.evmChain)
-    const exit = {
-        ss58: ss58ToPublicKey(destination),
-        evmFallback: sender,
-        wantLiquid: input.delivery === 'liquid',
-        minTaoOut: input.amountWei,
-    }
+    const exit = exitParams(
+        destination,
+        sender,
+        input.delivery,
+        input.amountWei
+    )
     const partnerFee = resolvePartnerFee(
         input.partnerFee,
         evm.contracts.gateway
@@ -1264,4 +1291,95 @@ export function prepareSubtensorToBase(
     input: SubtensorToBaseRequest
 ): Promise<BridgePreparation> {
     return prepareSubtensorToEvm(provider, { ...input, evmChain: 'base' })
+}
+
+/**
+ * CCIP gas for a Solana-to-Subtensor delivery. The vault withdrawal calls the
+ * staking precompile, which needs ~2.5M gas up front: at 1M the delivery ran
+ * out of gas on mainnet and was booked claimable. Measured use is ~0.3M.
+ */
+export const SOLANA_TO_SUBTENSOR_DESTINATION_GAS_LIMIT = 3_000_000n
+export interface SolanaToSubtensorRequest {
+    readonly asset?: BridgeAsset
+    /** The Solana wallet that holds the token and signs. */
+    readonly sender: string
+    /** 18-decimal wei, whole RAO; crosses as `amountWei / 1e9` Solana units. */
+    readonly amountWei: bigint
+    /** Finney coldkey (SS58) that receives the delivery. */
+    readonly destination: string
+    readonly delivery: SubtensorDelivery
+    /**
+     * Subtensor EVM address that can claim if delivery fails. Required: a
+     * zero fallback would send failed deliveries to the gateway's rescuer.
+     */
+    readonly evmFallback: string
+}
+/**
+ * A CCIP send from Solana, in the shape `@chainlink/ccip-sdk`'s
+ * `SolanaChain.getFee` / `generateUnsignedSendMessage` accept.
+ */
+export interface SolanaToSubtensorMessage {
+    readonly router: string
+    readonly destChainSelector: bigint
+    readonly sender: string
+    readonly message: {
+        readonly receiver: `0x${string}`
+        readonly data: `0x${string}`
+        readonly tokenAmounts: readonly {
+            readonly token: string
+            readonly amount: bigint
+        }[]
+        readonly extraArgs: {
+            readonly gasLimit: bigint
+            readonly allowOutOfOrderExecution: true
+        }
+    }
+}
+/**
+ * Build the CCIP message that returns a Solana token to Finney: the token
+ * goes to the V7 gateway with an exit payload, and the gateway delivers it to
+ * the coldkey as stake (or liquid TAO). Nothing on Solana validates the
+ * payload, so it must only ever be built here.
+ */
+export function buildSolanaToSubtensorMessage(
+    input: SolanaToSubtensorRequest
+): SolanaToSubtensorMessage {
+    const sender = normalizeSolanaWallet(input.sender)
+    const asset = solanaBridgeAsset(input.asset)
+    assertDelivery(input.delivery)
+    assertAssetMode(input.asset, input.delivery)
+    assertBaseToSubtensorAmount(input.amountWei, input.delivery)
+    const destination = normalizeSS58(input.destination)
+    const evmFallback = normalizeEvmAddress(input.evmFallback)
+    const exit = exitParams(
+        destination,
+        evmFallback,
+        input.delivery,
+        input.amountWei
+    )
+    const { solana, subtensor } = foreverMoneyDeployment
+    return Object.freeze({
+        router: solana.contracts.ccipRouter,
+        destChainSelector: subtensor.ccipSelector,
+        sender,
+        message: Object.freeze({
+            receiver: subtensor.contracts.svmGateway,
+            data: encodeAbiParameters(EXIT_PAYLOAD, [
+                exit.ss58,
+                exit.evmFallback,
+                exit.wantLiquid,
+                exit.minTaoOut,
+            ]),
+            tokenAmounts: Object.freeze([
+                Object.freeze({
+                    token: asset.mint,
+                    amount: input.amountWei / EVM_WEI_PER_RAO,
+                }),
+            ]),
+            extraArgs: Object.freeze({
+                gasLimit: SOLANA_TO_SUBTENSOR_DESTINATION_GAS_LIMIT,
+                allowOutOfOrderExecution: true as const,
+            }),
+        }),
+    })
 }

@@ -16,7 +16,13 @@ import {
 import {
     getSolanaDeliveryCheckpoint,
     getSolanaDeliveryStatus,
+    getSolanaSourceStatus,
     getSolanaTokenAccountStatus,
+    getSolanaWalletBalances,
+    type SolanaSourceStatus,
+    type SolanaSourceStatusRequest,
+    type SolanaWalletBalances,
+    type SolanaWalletBalancesRequest,
     type SolanaDeliveryCheckpoint,
     type SolanaDeliveryCheckpointRequest,
     type SolanaDeliveryStatusRequest,
@@ -89,6 +95,12 @@ export interface ForeverMoneyClient {
         getSolanaDeliveryStatus(
             input: SolanaDeliveryStatusRequest
         ): Promise<CcipDeliveryStatus>
+        getSolanaSourceStatus(
+            input: SolanaSourceStatusRequest
+        ): Promise<SolanaSourceStatus>
+        getSolanaWalletBalances(
+            input: SolanaWalletBalancesRequest
+        ): Promise<SolanaWalletBalances>
         getDeliveryCheckpoint(
             direction: BridgeDirection
         ): Promise<CcipDeliveryCheckpoint>
@@ -256,6 +268,18 @@ export function createForeverMoneyClient(
                 const solana = solanaTransport()
                 return providerOperation('Reading Solana delivery status', () =>
                     getSolanaDeliveryStatus(solana, input)
+                )
+            },
+            async getSolanaSourceStatus(input: SolanaSourceStatusRequest) {
+                const solana = solanaTransport()
+                return providerOperation('Reading the Solana send', () =>
+                    getSolanaSourceStatus(solana, input)
+                )
+            },
+            async getSolanaWalletBalances(input: SolanaWalletBalancesRequest) {
+                const solana = solanaTransport()
+                return providerOperation('Reading Solana balances', () =>
+                    getSolanaWalletBalances(solana, input)
                 )
             },
             async getDeliveryCheckpoint(direction: BridgeDirection) {

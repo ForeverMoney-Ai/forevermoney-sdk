@@ -19,6 +19,7 @@ export type BridgeDirection =
     | 'subtensor-to-base'
     | 'subtensor-to-robinhood'
     | 'subtensor-to-solana'
+    | 'solana-to-subtensor'
 
 export function assertBridgeDirection(
     value: unknown
@@ -28,7 +29,8 @@ export function assertBridgeDirection(
         value !== 'robinhood-to-subtensor' &&
         value !== 'subtensor-to-base' &&
         value !== 'subtensor-to-robinhood' &&
-        value !== 'subtensor-to-solana'
+        value !== 'subtensor-to-solana' &&
+        value !== 'solana-to-subtensor'
     ) {
         throw new ForeverMoneyError(
             'INVALID_TRANSACTION_PLAN',
@@ -37,9 +39,13 @@ export function assertBridgeDirection(
     }
 }
 
+/** Either Solana lane: Subtensor to Solana, or Solana to Subtensor. */
 export function isSolanaDirection(direction: BridgeDirection): boolean {
     assertBridgeDirection(direction)
-    return direction === 'subtensor-to-solana'
+    return (
+        direction === 'subtensor-to-solana' ||
+        direction === 'solana-to-subtensor'
+    )
 }
 
 export function evmChainFromBridgeDirection(
@@ -48,22 +54,27 @@ export function evmChainFromBridgeDirection(
     if (isSolanaDirection(direction)) {
         throw new ForeverMoneyError(
             'INVALID_TRANSACTION_PLAN',
-            'The Subtensor to Solana lane has no EVM destination chain.'
+            'Solana lanes have no EVM chain on the Solana side.'
         )
     }
     return direction.includes('robinhood') ? 'robinhood' : 'base'
 }
 
 export function isEvmToSubtensorDirection(direction: BridgeDirection): boolean {
-    assertBridgeDirection(direction)
-    return direction.endsWith('-to-subtensor')
+    return direction.endsWith('-to-subtensor') && !isSolanaDirection(direction)
 }
 
 export function bridgeMessageIdFromReceipt(
     direction: BridgeDirection,
     receipt: TransactionReceiptLike
 ): string | null {
-    if (isSolanaDirection(direction)) {
+    if (direction === 'solana-to-subtensor') {
+        throw new ForeverMoneyError(
+            'INVALID_TRANSACTION_PLAN',
+            'A Solana send has no EVM receipt; read it with getSolanaSourceStatus.'
+        )
+    }
+    if (direction === 'subtensor-to-solana') {
         return solanaMessageIdFromReceipt(receipt)
     }
     const evm = getForeverMoneyEvmDeployment(
