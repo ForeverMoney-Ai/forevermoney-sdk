@@ -6,6 +6,7 @@ export const SUBTENSOR_CHAIN_ID = 964
 export const BASE_CCIP_SELECTOR = 15_971_525_489_660_198_786n
 export const ROBINHOOD_CCIP_SELECTOR = 6_180_753_054_346_818_345n
 export const SUBTENSOR_CCIP_SELECTOR = 2_135_107_236_357_186_872n
+export const SOLANA_CCIP_SELECTOR = 124_615_329_519_749_607n
 export const RAO_PER_TAO = 1_000_000_000n
 export const EVM_WEI_PER_RAO = 1_000_000_000n
 export const SN118_NETUID = 118n
@@ -14,7 +15,7 @@ export const SN78_NETUID = 78n
 export const SN10_NETUID = 10n
 export const SN80_NETUID = 80n
 export const SN8_NETUID = 8n
-export const FOREVERMONEY_DEPLOYMENT_VERSION = '1.7.0' as const
+export const FOREVERMONEY_DEPLOYMENT_VERSION = '1.8.0' as const
 
 export const foreverMoneyDeployment = Object.freeze({
     version: FOREVERMONEY_DEPLOYMENT_VERSION,
@@ -104,12 +105,37 @@ export const foreverMoneyDeployment = Object.freeze({
             ),
         }),
     }),
+    solana: Object.freeze({
+        key: 'solana',
+        name: 'Solana',
+        ccipSelector: SOLANA_CCIP_SELECTOR,
+        contracts: Object.freeze({
+            // SPL mints (base58). Tokens land in the recipient wallet's
+            // associated token account, which must exist before delivery.
+            wrappedTao: null,
+            wrappedSn118: null,
+            wrappedSn120: null,
+            wrappedSn78: null,
+            wrappedSn10: null,
+            wrappedSn80: 'tarvwhnKDbAkNait5J52mDqsQ48q1sJt9kMhjZLhFH7',
+            wrappedSn8: null,
+            tokenProgram: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+            associatedTokenProgram:
+                'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL',
+            ccipOffRamp: 'offqSMQWgQud6WJz694LRzkeN5kMYpCHTpXQr3Rkcjm',
+        }),
+    }),
     subtensor: Object.freeze({
         chainId: SUBTENSOR_CHAIN_ID,
         ccipSelector: SUBTENSOR_CCIP_SELECTOR,
         contracts: Object.freeze({
             // V5.1 AlphaGateway: multi-validator staked input (tao-bridge 485c898).
             gateway: getAddress('0xd5Fa238aa4177f6c1341491969d9cBeec94EEd69'),
+            // V7 AlphaGateway: adds the Solana-VM entry points (tao-bridge
+            // 65fd8e7). Used only for Solana; EVM lanes stay on `gateway`.
+            svmGateway: getAddress(
+                '0x2E8219cCf00AbAF3fEdDA2C932Eced56654Aaf38'
+            ),
             // V4 and V5 hubs. The spokes still deliver to the V5 hub (their hub
             // pointer is immutable), so it stays here for delivery tracking.
             legacyGateways: [

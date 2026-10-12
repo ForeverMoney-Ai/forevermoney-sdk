@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.0
+
+- Add Solana as a Subtensor bridge-out destination (SN80, staked source). Plans call the V7 hub gateway's `bridgeOutSvm` / `bridgeOutFromValidatorsSvm` at `subtensor.contracts.svmGateway` (`0x2E8219cC…`); Base and Robinhood stay on the existing hub gateway.
+- `client.bridge.prepareSubtensorToSolana` requires a `solana` transport and throws `SOLANA_TOKEN_ACCOUNT_MISSING` until the recipient's associated token account exists. `buildCreateSolanaTokenAccountInstruction` builds an idempotent create instruction any wallet can pay for.
+- Solana recipients must be wallets: token accounts and other off-curve addresses are rejected (`INVALID_SOLANA_ADDRESS`). Partner fees are rejected on this route; the gateway has no SVM fee path.
+- Track Solana delivery with `getSolanaDeliveryCheckpoint` / `getSolanaDeliveryStatus`, which read the CCIP off-ramp's execution events on the recipient's token account. `getSourceStatus` and `bridgeMessageIdFromReceipt` accept `subtensor-to-solana`.
+- Subtensor bridge-out plans for every destination now share one implementation. Deployment metadata version 1.8.0.
+
 ## 0.5.11
 
 - Add Vanta SN8 token metadata on Base, Robinhood and Subtensor, with staked bridge plans in both directions on both EVM chains.

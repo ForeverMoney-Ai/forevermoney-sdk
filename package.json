@@ -1,6 +1,6 @@
 {
     "name": "@forevermoney/sdk",
-    "version": "0.5.11",
+    "version": "0.6.0",
     "description": "Typed bridge and vault integration SDK for ForeverMoney",
     "license": "MIT",
     "repository": {
@@ -67,7 +67,10 @@
         "access": "public"
     },
     "dependencies": {
+        "@noble/curves": "1.9.1",
+        "@noble/hashes": "2.4.0",
         "@polkadot-api/substrate-bindings": "0.21.1",
+        "@scure/base": "2.4.0",
         "viem": "2.56.3"
     }
 }

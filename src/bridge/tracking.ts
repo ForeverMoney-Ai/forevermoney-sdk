@@ -14,10 +14,10 @@ import {
 import { foreverMoneyDeployment } from '../chains/deployment.js'
 import { ForeverMoneyError } from '../core/errors.js'
 import {
-    assertBridgeDirection,
     bridgeMessageIdFromReceipt,
     evmChainFromBridgeDirection,
     isEvmToSubtensorDirection,
+    isSolanaDirection,
     type BridgeDirection,
 } from './receipts.js'
 import { getForeverMoneyEvmDeployment } from '../chains/deployment.js'
@@ -111,7 +111,12 @@ export type BridgeSourceStatus =
       })
 
 export function destinationChainId(direction: BridgeDirection): number {
-    assertBridgeDirection(direction)
+    if (isSolanaDirection(direction)) {
+        throw new ForeverMoneyError(
+            'INVALID_TRANSACTION_PLAN',
+            'Solana is not an EVM chain; track Solana delivery with getSolanaDeliveryStatus.'
+        )
+    }
     const evm = getForeverMoneyEvmDeployment(
         evmChainFromBridgeDirection(direction)
     )
@@ -121,7 +126,8 @@ export function destinationChainId(direction: BridgeDirection): number {
 }
 
 export function sourceChainId(direction: BridgeDirection): number {
-    assertBridgeDirection(direction)
+    if (isSolanaDirection(direction))
+        return foreverMoneyDeployment.subtensor.chainId
     const evm = getForeverMoneyEvmDeployment(
         evmChainFromBridgeDirection(direction)
     )

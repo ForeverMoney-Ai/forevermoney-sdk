@@ -1,12 +1,14 @@
 export * from './bridge/stake-rounding.js'
 export * from './core/addresses.js'
 export * from './core/amounts.js'
+export * from './core/solana.js'
 export { foreverMoneyAbis } from './abis/index.js'
 export {
     buildBaseToSubtensorPlan,
     buildEvmToSubtensorPlan,
     buildSubtensorToBasePlan,
     buildSubtensorToEvmPlan,
+    buildSubtensorToSolanaPlan,
     EVM_TO_SUBTENSOR_DESTINATION_GAS_LIMIT,
     MIN_LIQUID_BASE_TO_SUBTENSOR_WEI,
     MIN_LIQUID_EVM_TO_SUBTENSOR_WEI,
@@ -24,6 +26,10 @@ export {
     type BuildEvmToSubtensorPlanRequest,
     type BuildSubtensorToBasePlanRequest,
     type BuildSubtensorToEvmPlanRequest,
+    type BuildSubtensorToSolanaPlanRequest,
+    type SolanaBridgePreparation,
+    type SubtensorBridgeOutRequest,
+    type SubtensorToSolanaRequest,
     type EvmToSubtensorRequest,
     type SubtensorDelivery,
     type SubtensorSource,
@@ -31,6 +37,17 @@ export {
     type SubtensorToEvmRequest,
 } from './bridge/plans.js'
 export * from './client.js'
+export {
+    getSolanaDeliveryCheckpoint,
+    getSolanaDeliveryStatus,
+    getSolanaTokenAccountStatus,
+    solanaBridgeAsset,
+    type SolanaDeliveryCheckpoint,
+    type SolanaDeliveryCheckpointRequest,
+    type SolanaDeliveryStatusRequest,
+    type SolanaTokenAccountRequest,
+    type SolanaTokenAccountStatus,
+} from './bridge/solana.js'
 export {
     destinationChainId,
     getBridgeSourceStatus,
@@ -57,6 +74,7 @@ export {
     bridgeMessageIdFromReceipt,
     evmChainFromBridgeDirection,
     isEvmToSubtensorDirection,
+    isSolanaDirection,
     type BridgeDirection,
     type ReceiptLog,
     type TransactionReceiptLike,

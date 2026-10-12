@@ -4,6 +4,7 @@ import {
     BASE_CHAIN_ID,
     ROBINHOOD_CCIP_SELECTOR,
     ROBINHOOD_CHAIN_ID,
+    SOLANA_CCIP_SELECTOR,
     SUBTENSOR_CCIP_SELECTOR,
     SUBTENSOR_CHAIN_ID,
     SN80_NETUID,
@@ -36,6 +37,15 @@ describe('canonical production deployment', () => {
         )
         expect(foreverMoneyDeployment.subtensor.contracts.gateway).toBe(
             '0xd5Fa238aa4177f6c1341491969d9cBeec94EEd69'
+        )
+        expect(foreverMoneyDeployment.subtensor.contracts.svmGateway).toBe(
+            '0x2E8219cCf00AbAF3fEdDA2C932Eced56654Aaf38'
+        )
+        expect(foreverMoneyDeployment.solana.ccipSelector).toBe(
+            SOLANA_CCIP_SELECTOR
+        )
+        expect(foreverMoneyDeployment.solana.contracts.wrappedSn80).toBe(
+            'tarvwhnKDbAkNait5J52mDqsQ48q1sJt9kMhjZLhFH7'
         )
         expect(foreverMoneyDeployment.base.contracts.legacyGateways).toEqual([
             '0x5EF3d7D19e4b233a1A169DA0d5CB02ec6b160a2C',

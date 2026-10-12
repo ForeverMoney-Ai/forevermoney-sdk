@@ -18,6 +18,7 @@ export type BridgeDirection =
     | 'robinhood-to-subtensor'
     | 'subtensor-to-base'
     | 'subtensor-to-robinhood'
+    | 'subtensor-to-solana'
 
 export function assertBridgeDirection(
     value: unknown
@@ -26,19 +27,30 @@ export function assertBridgeDirection(
         value !== 'base-to-subtensor' &&
         value !== 'robinhood-to-subtensor' &&
         value !== 'subtensor-to-base' &&
-        value !== 'subtensor-to-robinhood'
+        value !== 'subtensor-to-robinhood' &&
+        value !== 'subtensor-to-solana'
     ) {
         throw new ForeverMoneyError(
             'INVALID_TRANSACTION_PLAN',
-            'Bridge direction must identify a canonical Base or Robinhood lane.'
+            'Bridge direction must identify a canonical Base, Robinhood or Solana lane.'
         )
     }
+}
+
+export function isSolanaDirection(direction: BridgeDirection): boolean {
+    assertBridgeDirection(direction)
+    return direction === 'subtensor-to-solana'
 }
 
 export function evmChainFromBridgeDirection(
     direction: BridgeDirection
 ): ForeverMoneyEvmChain {
-    assertBridgeDirection(direction)
+    if (isSolanaDirection(direction)) {
+        throw new ForeverMoneyError(
+            'INVALID_TRANSACTION_PLAN',
+            'The Subtensor to Solana lane has no EVM destination chain.'
+        )
+    }
     return direction.includes('robinhood') ? 'robinhood' : 'base'
 }
 
@@ -51,7 +63,9 @@ export function bridgeMessageIdFromReceipt(
     direction: BridgeDirection,
     receipt: TransactionReceiptLike
 ): string | null {
-    assertBridgeDirection(direction)
+    if (isSolanaDirection(direction)) {
+        return solanaMessageIdFromReceipt(receipt)
+    }
     const evm = getForeverMoneyEvmDeployment(
         evmChainFromBridgeDirection(direction)
     )
@@ -91,6 +105,33 @@ export function bridgeMessageIdFromReceipt(
                         parsed.args.destChainSelector === evm.ccipSelector))
             ) {
                 return messageId.toLowerCase()
+            }
+        } catch {
+            // A receipt can contain unrelated events from the same contract.
+        }
+    }
+    return null
+}
+
+function solanaMessageIdFromReceipt(
+    receipt: TransactionReceiptLike
+): string | null {
+    const { subtensor, solana } = foreverMoneyDeployment
+    for (const log of receipt.logs) {
+        if (!isLogFrom(log, subtensor.contracts.svmGateway)) continue
+        try {
+            const parsed = decodeEventLog({
+                abi: alphaGatewayAbi,
+                data: log.data as Hex,
+                topics: [...log.topics] as [Hex, ...Hex[]],
+            })
+            if (
+                parsed.eventName === 'BridgedOutSvm' &&
+                parsed.args.destSelector === solana.ccipSelector &&
+                isHex(parsed.args.messageId, { strict: true }) &&
+                parsed.args.messageId.length === 66
+            ) {
+                return parsed.args.messageId.toLowerCase()
             }
         } catch {
             // A receipt can contain unrelated events from the same contract.
