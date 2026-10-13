@@ -208,6 +208,75 @@ liquidity pool. The Robinhood SN80/TAO pool is
 `0xBB17f4Db7831128239a34C2F7bd291622FC2Cc38`; bridge calls use the token
 addresses above.
 
+## Bridge SN80 to Solana
+
+Subtensor to Solana is a send-only lane for SN80 (staked source). It runs
+through the V7 hub gateway (`subtensor.contracts.svmGateway`); Base and
+Robinhood keep using `subtensor.contracts.gateway`. Add a Solana transport:
+
+```ts
+const foreverMoney = createForeverMoneyClient({
+    transports: {
+        base: http(BASE_RPC_URL),
+        subtensor: http(SUBTENSOR_RPC_URL),
+        solana: http(SOLANA_RPC_URL),
+    },
+})
+```
+
+The recipient is a Solana **wallet** (base58). CCIP credits its associated
+token account and does not create it, so check it first and create it when
+missing. Anyone can pay for the account, so an app can sponsor it:
+
+```ts
+const account = await foreverMoney.bridge.getSolanaTokenAccountStatus({
+    owner: solanaWallet,
+    asset: 'sn80',
+})
+if (!account.exists) {
+    // A @solana/kit-shaped instruction; sign and send it with the payer.
+    const instruction = buildCreateSolanaTokenAccountInstruction({
+        payer: sponsorWallet,
+        owner: solanaWallet,
+        mint: account.mint,
+    })
+}
+
+const prepared = await foreverMoney.bridge.prepareSubtensorToSolana({
+    asset: 'sn80',
+    sender: evmAddress,
+    recipient: solanaWallet,
+    amountWei,
+    source: 'staked',
+})
+```
+
+`prepareSubtensorToSolana` throws `SOLANA_TOKEN_ACCOUNT_MISSING` (with `owner`,
+`mint` and `tokenAccount` details) while the account is missing. Token accounts
+and other program addresses are rejected as recipients (`INVALID_SOLANA_ADDRESS`):
+tokens sent there could not be recovered. Partner fees are not available on this
+route. Named `stakePulls` and stake rounding work as on the EVM routes.
+
+Track delivery with the Solana reads. Take the checkpoint before broadcasting;
+`getSourceStatus` with direction `subtensor-to-solana` returns the message ID:
+
+```ts
+const checkpoint = await foreverMoney.bridge.getSolanaDeliveryCheckpoint({
+    recipient: solanaWallet,
+    asset: 'sn80',
+})
+// ...broadcast, then getSourceStatus({ direction: 'subtensor-to-solana', transactionHash })
+const status = await foreverMoney.bridge.getSolanaDeliveryStatus({
+    messageId: source.messageId,
+    recipient: solanaWallet,
+    asset: 'sn80',
+    untilSignature: checkpoint.untilSignature,
+})
+```
+
+SN80 mint on Solana: `tarvwhnKDbAkNait5J52mDqsQ48q1sJt9kMhjZLhFH7` (9 decimals;
+whole-RAO amounts bridge exactly).
+
 ## Bridge stake held with several validators
 
 Staked alpha on Finney is keyed by validator hotkey, and a bridge can only pull

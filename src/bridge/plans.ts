@@ -3,7 +3,13 @@ import {
     type StakeRoundingOptions,
     type StakeRoundingResult,
 } from './stake-rounding.js'
-import { encodeFunctionData, parseAbi, type PublicClient } from 'viem'
+import {
+    encodeAbiParameters,
+    encodeFunctionData,
+    parseAbi,
+    parseAbiParameters,
+    type PublicClient,
+} from 'viem'
 import {
     ALPHA_GATEWAY_ABI,
     ERC20_ABI,
@@ -15,6 +21,10 @@ import {
     normalizeSS58,
     ss58ToPublicKey,
 } from '../core/addresses.js'
+import { normalizeSolanaWallet, solanaWalletToBytes32 } from '../core/solana.js'
+import type { RpcTransport } from '../core/transport.js'
+import { assetToken, isSubnetAsset, type BridgeAsset } from './assets.js'
+import { assertSolanaTokenAccount, solanaBridgeAsset } from './solana.js'
 import {
     assertWholeRao,
     feeWithBuffer,
@@ -29,6 +39,7 @@ import {
 import { ForeverMoneyError } from '../core/errors.js'
 import {
     createTransactionPlan,
+    type TransactionAction,
     type TransactionPlan,
     type TransactionStep,
 } from '../core/plans.js'
@@ -40,6 +51,10 @@ const erc20Abi = parseAbi(ERC20_ABI)
 const spokeAbi = parseAbi(SPOKE_GATEWAY_ABI)
 const alphaAbi = parseAbi(ALPHA_GATEWAY_ABI)
 const stakingAbi = parseAbi(STAKING_ABI)
+// AlphaGateway's ExitPayload: abi.encode(ss58, evmFallback, wantLiquid, minTaoOut).
+const EXIT_PAYLOAD = parseAbiParameters(
+    'bytes32 ss58, address evmFallback, bool wantLiquid, uint256 minTaoOut'
+)
 export const MIN_LIQUID_EVM_TO_SUBTENSOR_WEI = 10000000000000000n
 export const MIN_LIQUID_BASE_TO_SUBTENSOR_WEI = MIN_LIQUID_EVM_TO_SUBTENSOR_WEI
 // Subtensor's minimum new stake is 2,000,000 RAO (0.002 TAO).
@@ -62,7 +77,7 @@ function resolveDestinationGasLimit(value?: bigint): bigint {
 }
 export type SubtensorDelivery = 'liquid' | 'staked'
 export type SubtensorSource = 'liquid' | 'staked'
-export type BridgeAsset = 'tao' | `sn${number}`
+export type { BridgeAsset } from './assets.js'
 /**
  * Optional partner (integrator) fee, charged ON TOP of the bridged amount and
  * paid to `recipient` on the source chain. The full `amountWei` still crosses.
@@ -101,7 +116,8 @@ export interface EvmToSubtensorRequest {
     readonly destination: string
     readonly delivery: SubtensorDelivery
 }
-export interface SubtensorToEvmRequest {
+/** Fields shared by every Subtensor bridge-out, whatever the destination chain. */
+export interface SubtensorBridgeOutRequest {
     /** Opt-in read-only amount adjustment. False/omitted preserves exact input.
      * Requires named stakePulls and current balances; minAmountOutWei is never lowered.
      * Preparation may return an approval first; prepare again after it confirms.
@@ -112,9 +128,7 @@ export interface SubtensorToEvmRequest {
      * Callers choose their tolerance explicitly, including staking rounding dust.
      */
     readonly minAmountOutWei?: bigint
-    readonly evmChain: ForeverMoneyEvmChain
     readonly asset?: BridgeAsset
-    readonly partnerFee?: PartnerFee
     readonly sender: string
     readonly recipient: string
     readonly amountWei: bigint
@@ -129,6 +143,16 @@ export interface SubtensorToEvmRequest {
      */
     readonly stakePulls?: readonly StakePull[]
 }
+export interface SubtensorToEvmRequest extends SubtensorBridgeOutRequest {
+    readonly evmChain: ForeverMoneyEvmChain
+    readonly partnerFee?: PartnerFee
+}
+/**
+ * Subtensor to Solana. `recipient` is the Solana wallet (base58); CCIP credits
+ * its associated token account, which must exist before the bridge is sent.
+ * Partner fees are not available on this route.
+ */
+export type SubtensorToSolanaRequest = SubtensorBridgeOutRequest
 export type BaseToSubtensorRequest = Omit<EvmToSubtensorRequest, 'evmChain'>
 export type SubtensorToBaseRequest = Omit<SubtensorToEvmRequest, 'evmChain'>
 export interface BridgePreparation {
@@ -149,6 +173,10 @@ export interface BridgePreparation {
      */
     readonly partnerFeeWaived: boolean
     readonly plan: TransactionPlan
+}
+export interface SolanaBridgePreparation extends BridgePreparation {
+    /** The recipient's associated token account that the tokens will land in. */
+    readonly solanaTokenAccount: string
 }
 interface ResolvedPartnerFee {
     readonly recipient: `0x${string}`
@@ -229,30 +257,14 @@ function bridgeAsset(
     evmChain: ForeverMoneyEvmChain,
     asset: BridgeAsset = 'tao'
 ) {
-    if (asset !== 'tao' && !/^sn[1-9]\d*$/.test(asset)) {
-        throw new ForeverMoneyError(
-            'INVALID_TRANSACTION_PLAN',
-            'Asset must be "tao" or a configured subnet token such as "sn80".'
-        )
-    }
-    const evm = getForeverMoneyEvmDeployment(evmChain)
-    const tokenKey = `wrappedSn${asset.slice(2)}`
-    const evmToken =
-        asset === 'tao'
-            ? evm.contracts.wrappedTao
-            : (
-                  evm.contracts as unknown as Record<
-                      string,
-                      `0x${string}` | null
-                  >
-              )[tokenKey]
-    const subtensorToken =
-        asset === 'tao'
-            ? foreverMoneyDeployment.subtensor.contracts.wrappedTao
-            : (
-                  foreverMoneyDeployment.subtensor
-                      .contracts as unknown as Record<string, `0x${string}`>
-              )[tokenKey]
+    const evmToken = assetToken<`0x${string}`>(
+        getForeverMoneyEvmDeployment(evmChain).contracts,
+        asset
+    )
+    const subtensorToken = assetToken<`0x${string}`>(
+        foreverMoneyDeployment.subtensor.contracts,
+        asset
+    )
     if (!evmToken || !subtensorToken) {
         throw new ForeverMoneyError(
             'INVALID_TRANSACTION_PLAN',
@@ -267,9 +279,8 @@ function bridgeAsset(
               wrappedLabel: asset.toUpperCase(),
           }
         : {
-              evmToken: evm.contracts.wrappedTao,
-              subtensorToken:
-                  foreverMoneyDeployment.subtensor.contracts.wrappedTao,
+              evmToken,
+              subtensorToken,
               label: 'TAO',
               wrappedLabel: 'wrapped TAO',
           }
@@ -278,19 +289,18 @@ function assertAssetMode(
     asset: BridgeAsset | undefined,
     mode: SubtensorSource
 ): void {
-    if (asset && /^sn[1-9]\d*$/.test(asset) && mode !== 'staked') {
+    if (isSubnetAsset(asset) && mode !== 'staked') {
         throw new ForeverMoneyError(
             'INVALID_TRANSACTION_PLAN',
             `${asset.toUpperCase()} bridging requires staked subnet ${BigInt(asset.slice(2))} input or delivery; liquid TAO conversion is not supported.`
         )
     }
 }
-function sourceNetuid(input: SubtensorToEvmRequest): bigint | undefined {
+function sourceNetuid(input: SubtensorBridgeOutRequest): bigint | undefined {
     if (input.source !== 'staked') return undefined
-    const assetNetuid =
-        input.asset && /^sn[1-9]\d*$/.test(input.asset)
-            ? BigInt(input.asset.slice(2))
-            : undefined
+    const assetNetuid = isSubnetAsset(input.asset)
+        ? BigInt(input.asset.slice(2))
+        : undefined
     const netuid = input.netuid ?? assetNetuid
     if (netuid === undefined) {
         throw new ForeverMoneyError(
@@ -309,7 +319,7 @@ function sourceNetuid(input: SubtensorToEvmRequest): bigint | undefined {
 }
 /** Resolved pulls for a staked source that names them; undefined otherwise. */
 function stakePullsFor(
-    input: SubtensorToEvmRequest,
+    input: SubtensorBridgeOutRequest,
     amountRao: bigint
 ): ResolvedStakePull[] | undefined {
     if (input.stakePulls === undefined) return undefined
@@ -321,7 +331,7 @@ function stakePullsFor(
     }
     return resolveStakePulls(input.stakePulls, amountRao)
 }
-function minimumSubtensorOutput(input: SubtensorToEvmRequest): bigint {
+function minimumSubtensorOutput(input: SubtensorBridgeOutRequest): bigint {
     const minimum = input.minAmountOutWei ?? input.amountWei
     assertNonNegativeAmount(minimum, 'Minimum output')
     if (minimum === 0n || minimum > input.amountWei) {
@@ -364,7 +374,7 @@ function assertBaseToSubtensorAmount(
         )
     }
 }
-function assertSubtensorToEvmAmount(
+function assertSubtensorBridgeOutAmount(
     amountWei: bigint,
     source: SubtensorSource
 ): void {
@@ -385,11 +395,16 @@ export interface BuildEvmToSubtensorPlanRequest extends EvmToSubtensorRequest {
     readonly exactNetworkFeeWei: bigint
     readonly estimatedBridgeGas?: bigint
 }
-export interface BuildSubtensorToEvmPlanRequest extends SubtensorToEvmRequest {
+/** Values a Subtensor bridge-out plan is built from, read by `prepare*`. */
+interface HubPlanInputs {
     readonly stakingAllowanceRao?: bigint
     readonly exactNetworkFeeWei: bigint
     readonly estimatedBridgeGas?: bigint
 }
+export interface BuildSubtensorToEvmPlanRequest
+    extends SubtensorToEvmRequest, HubPlanInputs {}
+export interface BuildSubtensorToSolanaPlanRequest
+    extends SubtensorBridgeOutRequest, HubPlanInputs {}
 export type BuildBaseToSubtensorPlanRequest = Omit<
     BuildEvmToSubtensorPlanRequest,
     'evmChain'
@@ -428,6 +443,23 @@ type ExitParams = {
     evmFallback: `0x${string}`
     wantLiquid: boolean
     minTaoOut: bigint
+}
+/**
+ * The gateway's exit payload for a delivery to Subtensor: the destination
+ * coldkey, who can claim if delivery fails, and staked or liquid delivery.
+ */
+function exitParams(
+    destination: string,
+    evmFallback: `0x${string}`,
+    delivery: SubtensorDelivery,
+    amountWei: bigint
+): ExitParams {
+    return {
+        ss58: ss58ToPublicKey(destination),
+        evmFallback,
+        wantLiquid: delivery === 'liquid',
+        minTaoOut: amountWei,
+    }
 }
 function partnerFeeSummary(
     charged: bigint,
@@ -561,6 +593,41 @@ function encodeHubBridge(
               args: [...args, fee],
           })
 }
+function encodeSvmHubBridge(
+    destSelector: bigint,
+    token: `0x${string}`,
+    tokenReceiver: `0x${string}`,
+    taoAmount: bigint,
+    stakedAlphaRao: bigint,
+    minTokenOut: bigint,
+    pulls?: ResolvedStakePull[]
+): `0x${string}` {
+    return pulls !== undefined
+        ? encodeFunctionData({
+              abi: alphaAbi,
+              functionName: 'bridgeOutFromValidatorsSvm',
+              args: [
+                  destSelector,
+                  token,
+                  tokenReceiver,
+                  taoAmount,
+                  pulls,
+                  minTokenOut,
+              ],
+          })
+        : encodeFunctionData({
+              abi: alphaAbi,
+              functionName: 'bridgeOutSvm',
+              args: [
+                  destSelector,
+                  token,
+                  tokenReceiver,
+                  taoAmount,
+                  stakedAlphaRao,
+                  minTokenOut,
+              ],
+          })
+}
 async function quoteSpokeWithFee(
     provider: PublicClient,
     gateway: `0x${string}`,
@@ -653,12 +720,12 @@ export function buildEvmToSubtensorPlan(
         input.destinationGasLimit
     )
     const destination = normalizeSS58(input.destination)
-    const exit = {
-        ss58: ss58ToPublicKey(destination),
-        evmFallback: sender,
-        wantLiquid: input.delivery === 'liquid',
-        minTaoOut: input.amountWei,
-    }
+    const exit = exitParams(
+        destination,
+        sender,
+        input.delivery,
+        input.amountWei
+    )
     const evm = getForeverMoneyEvmDeployment(input.evmChain)
     const partnerFee = resolvePartnerFee(
         input.partnerFee,
@@ -718,22 +785,146 @@ export function buildBaseToSubtensorPlan(
 ): TransactionPlan {
     return buildEvmToSubtensorPlan({ ...input, evmChain: 'base' })
 }
-export function buildSubtensorToEvmPlan(
-    input: BuildSubtensorToEvmPlanRequest
-): TransactionPlan {
-    const sender = normalizeEvmAddress(input.sender)
+/**
+ * Where a Subtensor bridge-out goes: the hub gateway that serves the lane, the
+ * lane selector, the recipient, and how that destination's call is encoded and
+ * quoted. Everything else (amounts, staking approval, fees, plan shape) is
+ * shared by every destination.
+ */
+interface HubRoute {
+    readonly gateway: `0x${string}`
+    readonly destinationName: string
+    readonly action: TransactionAction
+    readonly recipient: string
+    readonly label: string
+    readonly partnerFee: ResolvedPartnerFee
+    encode(call: HubCall): `0x${string}`
+    quote(provider: PublicClient, call: HubCall): Promise<bigint>
+}
+interface HubCall {
+    readonly mintedAmount: bigint
+    readonly taoAmount: bigint
+    readonly stakedAlphaRao: bigint
+    readonly minTokenOut: bigint
+    readonly fee: ResolvedPartnerFee
+    readonly pulls?: ResolvedStakePull[] | undefined
+}
+function evmHubRoute(input: SubtensorToEvmRequest): HubRoute {
     const recipient = normalizeEvmAddress(input.recipient)
     const asset = bridgeAsset(input.evmChain, input.asset)
+    const evm = getForeverMoneyEvmDeployment(input.evmChain)
+    const { gateway } = foreverMoneyDeployment.subtensor.contracts
+    return {
+        gateway,
+        destinationName: evm.name,
+        action:
+            evm.key === 'base'
+                ? 'bridge.subtensor-to-base'
+                : 'bridge.subtensor-to-robinhood',
+        recipient,
+        label: asset.label,
+        partnerFee: resolvePartnerFee(input.partnerFee, gateway),
+        encode: (call) =>
+            encodeHubBridge(
+                evm.ccipSelector,
+                asset.subtensorToken,
+                recipient,
+                call.taoAmount,
+                call.stakedAlphaRao,
+                call.minTokenOut,
+                call.fee,
+                call.pulls
+            ),
+        async quote(provider, call) {
+            if (call.fee.bps !== 0) {
+                const quote = await quoteHubWithFee(
+                    provider,
+                    gateway,
+                    evm.ccipSelector,
+                    asset.subtensorToken,
+                    recipient,
+                    call.mintedAmount,
+                    call.taoAmount,
+                    call.stakedAlphaRao,
+                    call.fee
+                )
+                return quote.networkFee
+            }
+            return provider.readContract({
+                address: gateway,
+                abi: alphaAbi,
+                functionName: 'quoteBridgeOut',
+                args: [
+                    evm.ccipSelector,
+                    asset.subtensorToken,
+                    recipient,
+                    call.mintedAmount,
+                ],
+            })
+        },
+    }
+}
+function solanaHubRoute(input: SubtensorToSolanaRequest): HubRoute {
+    const recipient = normalizeSolanaWallet(input.recipient)
+    const tokenReceiver = solanaWalletToBytes32(recipient)
+    const asset = solanaBridgeAsset(input.asset)
+    const { solana, subtensor } = foreverMoneyDeployment
+    // The SVM entry points live on the V7 hub; EVM lanes stay on `gateway`.
+    const gateway = subtensor.contracts.svmGateway
+    // The gateway's SVM path takes no integrator fee. Plain JS callers can
+    // still pass one, so refuse it instead of silently dropping it.
+    const { partnerFee } = input as { partnerFee?: PartnerFee }
+    if (partnerFee !== undefined && partnerFee.bps !== 0) {
+        throw new ForeverMoneyError(
+            'INVALID_PARTNER_FEE',
+            'Partner fees are not supported when bridging to Solana.'
+        )
+    }
+    return {
+        gateway,
+        destinationName: solana.name,
+        action: 'bridge.subtensor-to-solana',
+        recipient,
+        label: asset.label,
+        partnerFee: NO_PARTNER_FEE,
+        encode: (call) =>
+            encodeSvmHubBridge(
+                solana.ccipSelector,
+                asset.subtensorToken,
+                tokenReceiver,
+                call.taoAmount,
+                call.stakedAlphaRao,
+                call.minTokenOut,
+                call.pulls
+            ),
+        quote: (provider, call) =>
+            provider.readContract({
+                address: gateway,
+                abi: alphaAbi,
+                functionName: 'quoteBridgeOutSvm',
+                args: [
+                    solana.ccipSelector,
+                    asset.subtensorToken,
+                    tokenReceiver,
+                    call.mintedAmount,
+                ],
+            }),
+    }
+}
+function buildHubPlan(
+    route: HubRoute,
+    input: SubtensorBridgeOutRequest & HubPlanInputs
+): TransactionPlan {
+    const sender = normalizeEvmAddress(input.sender)
     assertSource(input.source)
     assertAssetMode(input.asset, input.source)
     const netuid = sourceNetuid(input)
-    assertSubtensorToEvmAmount(input.amountWei, input.source)
+    assertSubtensorBridgeOutAmount(input.amountWei, input.source)
     const minAmountOutWei = minimumSubtensorOutput(input)
     assertNonNegativeAmount(input.exactNetworkFeeWei, 'Network fee')
     const { subtensor } = foreverMoneyDeployment
-    const evm = getForeverMoneyEvmDeployment(input.evmChain)
     const { fee: partnerFee } = hubPartnerFee(
-        resolvePartnerFee(input.partnerFee, subtensor.contracts.gateway),
+        route.partnerFee,
         input.source,
         input.amountWei
     )
@@ -760,7 +951,7 @@ export function buildSubtensorToEvmPlan(
             steps.push(
                 transactionStep(
                     'approval',
-                    `Approve staked ${asset.label} for the ForeverMoney gateway`,
+                    `Approve staked ${route.label} for the ForeverMoney gateway`,
                     subtensor.chainId,
                     sender,
                     subtensor.contracts.stakingPrecompile,
@@ -768,7 +959,7 @@ export function buildSubtensorToEvmPlan(
                         abi: stakingAbi,
                         functionName: 'approve',
                         args: [
-                            subtensor.contracts.gateway,
+                            route.gateway,
                             netuid!,
                             amountRao + alphaTopUpRao,
                         ],
@@ -788,26 +979,23 @@ export function buildSubtensorToEvmPlan(
     }
     const taoAmount = input.source === 'liquid' ? input.amountWei : 0n
     const stakedAlphaRao = input.source === 'staked' ? amountRao : 0n
-    const pulls = stakePullsFor(input, amountRao)
     const value = taoAmount + taoTopUp + feeWithBuffer(input.exactNetworkFeeWei)
     assertNonNegativeAmount(value, 'Transaction value')
     steps.push(
         transactionStep(
             'transaction',
-            `Bridge ${input.source} ${asset.label} from Subtensor to ${evm.name}`,
+            `Bridge ${input.source} ${route.label} from Subtensor to ${route.destinationName}`,
             subtensor.chainId,
             sender,
-            subtensor.contracts.gateway,
-            encodeHubBridge(
-                evm.ccipSelector,
-                asset.subtensorToken,
-                recipient,
+            route.gateway,
+            route.encode({
+                mintedAmount: input.amountWei,
                 taoAmount,
                 stakedAlphaRao,
-                minAmountOutWei,
-                partnerFee,
-                pulls
-            ),
+                minTokenOut: minAmountOutWei,
+                fee: partnerFee,
+                pulls: stakePullsFor(input, amountRao),
+            }),
             value,
             input.estimatedBridgeGas === undefined
                 ? undefined
@@ -815,19 +1003,30 @@ export function buildSubtensorToEvmPlan(
         )
     )
     return createTransactionPlan({
-        action:
-            evm.key === 'base'
-                ? 'bridge.subtensor-to-base'
-                : 'bridge.subtensor-to-robinhood',
-        summary: `Bridge ${input.amountWei} wei of ${input.source} ${asset.label} from Subtensor to ${recipient} on ${evm.name}.${partnerFeeSummary(
+        action: route.action,
+        summary: `Bridge ${input.amountWei} wei of ${input.source} ${route.label} from Subtensor to ${route.recipient} on ${route.destinationName}.${partnerFeeSummary(
             input.source === 'liquid'
                 ? taoTopUp
                 : alphaTopUpRao * EVM_WEI_PER_RAO,
-            input.source === 'liquid' ? 'TAO' : `staked ${asset.label}`,
+            input.source === 'liquid' ? 'TAO' : `staked ${route.label}`,
             partnerFee
         )}`,
         steps,
     })
+}
+export function buildSubtensorToEvmPlan(
+    input: BuildSubtensorToEvmPlanRequest
+): TransactionPlan {
+    return buildHubPlan(evmHubRoute(input), input)
+}
+/**
+ * Plan a Subtensor-to-Solana bridge. Pure: it cannot check that the
+ * recipient's token account exists — `prepareSubtensorToSolana` does.
+ */
+export function buildSubtensorToSolanaPlan(
+    input: BuildSubtensorToSolanaPlanRequest
+): TransactionPlan {
+    return buildHubPlan(solanaHubRoute(input), input)
 }
 export function buildSubtensorToBasePlan(
     input: BuildSubtensorToBasePlanRequest
@@ -848,12 +1047,12 @@ export async function prepareEvmToSubtensor(
     )
     const destination = normalizeSS58(input.destination)
     const evm = getForeverMoneyEvmDeployment(input.evmChain)
-    const exit = {
-        ss58: ss58ToPublicKey(destination),
-        evmFallback: sender,
-        wantLiquid: input.delivery === 'liquid',
-        minTaoOut: input.amountWei,
-    }
+    const exit = exitParams(
+        destination,
+        sender,
+        input.delivery,
+        input.amountWei
+    )
     const partnerFee = resolvePartnerFee(
         input.partnerFee,
         evm.contracts.gateway
@@ -924,61 +1123,42 @@ export function prepareBaseToSubtensor(
 ): Promise<BridgePreparation> {
     return prepareEvmToSubtensor(provider, { ...input, evmChain: 'base' })
 }
-async function prepareSubtensorToEvmExact(
+async function prepareHubExact(
     provider: PublicClient,
-    input: SubtensorToEvmRequest
+    route: HubRoute,
+    input: SubtensorBridgeOutRequest
 ): Promise<BridgePreparation> {
     const sender = normalizeEvmAddress(input.sender)
-    const recipient = normalizeEvmAddress(input.recipient)
-    const asset = bridgeAsset(input.evmChain, input.asset)
     assertSource(input.source)
     assertAssetMode(input.asset, input.source)
     const netuid = sourceNetuid(input)
-    assertSubtensorToEvmAmount(input.amountWei, input.source)
+    assertSubtensorBridgeOutAmount(input.amountWei, input.source)
     const minAmountOutWei = minimumSubtensorOutput(input)
     const { subtensor } = foreverMoneyDeployment
-    const evm = getForeverMoneyEvmDeployment(input.evmChain)
     const { fee: partnerFee, waived: partnerFeeWaived } = hubPartnerFee(
-        resolvePartnerFee(input.partnerFee, subtensor.contracts.gateway),
+        route.partnerFee,
         input.source,
         input.amountWei
     )
     const taoAmount = input.source === 'liquid' ? input.amountWei : 0n
     const stakedAlphaRao =
         input.source === 'staked' ? input.amountWei / EVM_WEI_PER_RAO : 0n
-    const exactNetworkFeeWei =
-        partnerFee.bps === 0
-            ? await provider.readContract({
-                  address: subtensor.contracts.gateway,
-                  abi: alphaAbi,
-                  functionName: 'quoteBridgeOut',
-                  args: [
-                      evm.ccipSelector,
-                      asset.subtensorToken,
-                      recipient,
-                      input.amountWei,
-                  ],
-              })
-            : (
-                  await quoteHubWithFee(
-                      provider,
-                      subtensor.contracts.gateway,
-                      evm.ccipSelector,
-                      asset.subtensorToken,
-                      recipient,
-                      input.amountWei,
-                      taoAmount,
-                      stakedAlphaRao,
-                      partnerFee
-                  )
-              ).networkFee
+    const call: HubCall = {
+        mintedAmount: input.amountWei,
+        taoAmount,
+        stakedAlphaRao,
+        minTokenOut: minAmountOutWei,
+        fee: partnerFee,
+        pulls: stakePullsFor(input, stakedAlphaRao),
+    }
+    const exactNetworkFeeWei = await route.quote(provider, call)
     let stakingAllowanceRao: bigint | undefined
     if (input.source === 'staked') {
         stakingAllowanceRao = await provider.readContract({
             address: subtensor.contracts.stakingPrecompile,
             abi: stakingAbi,
             functionName: 'allowance',
-            args: [sender, subtensor.contracts.gateway, netuid!],
+            args: [sender, route.gateway, netuid!],
         })
     }
     const alphaTopUpRao = partnerFeeCut(stakedAlphaRao, partnerFee.bps)
@@ -993,21 +1173,12 @@ async function prepareSubtensorToEvmExact(
     ) {
         estimatedBridgeGas = await provider.estimateGas({
             account: sender,
-            to: subtensor.contracts.gateway,
-            data: encodeHubBridge(
-                evm.ccipSelector,
-                asset.subtensorToken,
-                recipient,
-                taoAmount,
-                stakedAlphaRao,
-                minAmountOutWei,
-                partnerFee,
-                stakePullsFor(input, stakedAlphaRao)
-            ),
+            to: route.gateway,
+            data: route.encode(call),
             value,
         })
     }
-    const plan = buildSubtensorToEvmPlan({
+    const plan = buildHubPlan(route, {
         ...input,
         exactNetworkFeeWei,
         ...(stakingAllowanceRao === undefined ? {} : { stakingAllowanceRao }),
@@ -1024,10 +1195,11 @@ async function prepareSubtensorToEvmExact(
         plan,
     })
 }
-/** Prepare an exact or explicitly rounding-adjusted plan. No transactions are sent. */
-export async function prepareSubtensorToEvm(
-    provider: PublicClient,
-    input: SubtensorToEvmRequest
+/** Exact preparation, or the opt-in stake-rounding search around it. */
+async function prepareHub<T extends SubtensorBridgeOutRequest>(
+    input: T,
+    partnerFeeBps: number,
+    exact: (input: T) => Promise<BridgePreparation>
 ): Promise<BridgePreparation> {
     const options = input.stakeRounding
     if (
@@ -1040,8 +1212,7 @@ export async function prepareSubtensorToEvm(
             'stakeRounding.enabled must be a boolean.'
         )
     }
-    if (!options || !options.enabled)
-        return prepareSubtensorToEvmExact(provider, input)
+    if (!options || !options.enabled) return exact(input)
     if (input.source !== 'staked' || !input.stakePulls?.length) {
         throw new ForeverMoneyError(
             'INVALID_TRANSACTION_PLAN',
@@ -1055,9 +1226,9 @@ export async function prepareSubtensorToEvm(
         pulls: input.stakePulls,
         positions: options.positions,
         minStakeRao: options.minStakeRao ?? 0n,
-        partnerFeeBps: input.partnerFee?.bps ?? 0,
+        partnerFeeBps,
         quoteAndEstimate: async (amountWei, stakePulls, minAmountOutWei) => ({
-            prepared: await prepareSubtensorToEvmExact(provider, {
+            prepared: await exact({
                 ...input,
                 amountWei,
                 stakePulls,
@@ -1079,10 +1250,136 @@ export async function prepareSubtensorToEvm(
         }),
     })
 }
+/** Prepare an exact or explicitly rounding-adjusted plan. No transactions are sent. */
+export function prepareSubtensorToEvm(
+    provider: PublicClient,
+    input: SubtensorToEvmRequest
+): Promise<BridgePreparation> {
+    return prepareHub(input, input.partnerFee?.bps ?? 0, (request) =>
+        prepareHubExact(provider, evmHubRoute(request), request)
+    )
+}
+export interface SubtensorToSolanaProviders {
+    readonly subtensor: PublicClient
+    /** Solana JSON-RPC, used to confirm the recipient's token account exists. */
+    readonly solana: RpcTransport
+}
+/**
+ * Prepare a Subtensor-to-Solana bridge. Throws `SOLANA_TOKEN_ACCOUNT_MISSING`
+ * (details: owner, mint, tokenAccount) when the recipient's associated token
+ * account does not exist: CCIP cannot deliver without it. No transactions are
+ * sent.
+ */
+export async function prepareSubtensorToSolana(
+    providers: SubtensorToSolanaProviders,
+    input: SubtensorToSolanaRequest
+): Promise<SolanaBridgePreparation> {
+    // Validate the request before touching Solana RPC.
+    solanaHubRoute(input)
+    const { tokenAccount } = await assertSolanaTokenAccount(providers.solana, {
+        owner: input.recipient,
+        ...(input.asset === undefined ? {} : { asset: input.asset }),
+    })
+    const prepared = await prepareHub(input, 0, (request) =>
+        prepareHubExact(providers.subtensor, solanaHubRoute(request), request)
+    )
+    return Object.freeze({ ...prepared, solanaTokenAccount: tokenAccount })
+}
 
 export function prepareSubtensorToBase(
     provider: PublicClient,
     input: SubtensorToBaseRequest
 ): Promise<BridgePreparation> {
     return prepareSubtensorToEvm(provider, { ...input, evmChain: 'base' })
+}
+
+/**
+ * CCIP gas for a Solana-to-Subtensor delivery. The vault withdrawal calls the
+ * staking precompile, which needs ~2.5M gas up front: at 1M the delivery ran
+ * out of gas on mainnet and was booked claimable. Measured use is ~0.3M.
+ */
+export const SOLANA_TO_SUBTENSOR_DESTINATION_GAS_LIMIT = 3_000_000n
+export interface SolanaToSubtensorRequest {
+    readonly asset?: BridgeAsset
+    /** The Solana wallet that holds the token and signs. */
+    readonly sender: string
+    /** 18-decimal wei, whole RAO; crosses as `amountWei / 1e9` Solana units. */
+    readonly amountWei: bigint
+    /** Finney coldkey (SS58) that receives the delivery. */
+    readonly destination: string
+    readonly delivery: SubtensorDelivery
+    /**
+     * Subtensor EVM address that can claim if delivery fails. Required: a
+     * zero fallback would send failed deliveries to the gateway's rescuer.
+     */
+    readonly evmFallback: string
+}
+/**
+ * A CCIP send from Solana, in the shape `@chainlink/ccip-sdk`'s
+ * `SolanaChain.getFee` / `generateUnsignedSendMessage` accept.
+ */
+export interface SolanaToSubtensorMessage {
+    readonly router: string
+    readonly destChainSelector: bigint
+    readonly sender: string
+    readonly message: {
+        readonly receiver: `0x${string}`
+        readonly data: `0x${string}`
+        readonly tokenAmounts: readonly {
+            readonly token: string
+            readonly amount: bigint
+        }[]
+        readonly extraArgs: {
+            readonly gasLimit: bigint
+            readonly allowOutOfOrderExecution: true
+        }
+    }
+}
+/**
+ * Build the CCIP message that returns a Solana token to Finney: the token
+ * goes to the V7 gateway with an exit payload, and the gateway delivers it to
+ * the coldkey as stake (or liquid TAO). Nothing on Solana validates the
+ * payload, so it must only ever be built here.
+ */
+export function buildSolanaToSubtensorMessage(
+    input: SolanaToSubtensorRequest
+): SolanaToSubtensorMessage {
+    const sender = normalizeSolanaWallet(input.sender)
+    const asset = solanaBridgeAsset(input.asset)
+    assertDelivery(input.delivery)
+    assertAssetMode(input.asset, input.delivery)
+    assertBaseToSubtensorAmount(input.amountWei, input.delivery)
+    const destination = normalizeSS58(input.destination)
+    const evmFallback = normalizeEvmAddress(input.evmFallback)
+    const exit = exitParams(
+        destination,
+        evmFallback,
+        input.delivery,
+        input.amountWei
+    )
+    const { solana, subtensor } = foreverMoneyDeployment
+    return Object.freeze({
+        router: solana.contracts.ccipRouter,
+        destChainSelector: subtensor.ccipSelector,
+        sender,
+        message: Object.freeze({
+            receiver: subtensor.contracts.svmGateway,
+            data: encodeAbiParameters(EXIT_PAYLOAD, [
+                exit.ss58,
+                exit.evmFallback,
+                exit.wantLiquid,
+                exit.minTaoOut,
+            ]),
+            tokenAmounts: Object.freeze([
+                Object.freeze({
+                    token: asset.mint,
+                    amount: input.amountWei / EVM_WEI_PER_RAO,
+                }),
+            ]),
+            extraArgs: Object.freeze({
+                gasLimit: SOLANA_TO_SUBTENSOR_DESTINATION_GAS_LIMIT,
+                allowOutOfOrderExecution: true as const,
+            }),
+        }),
+    })
 }

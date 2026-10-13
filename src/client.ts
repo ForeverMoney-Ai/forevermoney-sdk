@@ -4,12 +4,31 @@ import {
     prepareEvmToSubtensor,
     prepareSubtensorToBase,
     prepareSubtensorToEvm,
+    prepareSubtensorToSolana,
     type BaseToSubtensorRequest,
     type BridgePreparation,
     type EvmToSubtensorRequest,
+    type SolanaBridgePreparation,
     type SubtensorToBaseRequest,
     type SubtensorToEvmRequest,
+    type SubtensorToSolanaRequest,
 } from './bridge/plans.js'
+import {
+    getSolanaDeliveryCheckpoint,
+    getSolanaDeliveryStatus,
+    getSolanaSourceStatus,
+    getSolanaTokenAccountStatus,
+    getSolanaWalletBalances,
+    type SolanaSourceStatus,
+    type SolanaSourceStatusRequest,
+    type SolanaWalletBalances,
+    type SolanaWalletBalancesRequest,
+    type SolanaDeliveryCheckpoint,
+    type SolanaDeliveryCheckpointRequest,
+    type SolanaDeliveryStatusRequest,
+    type SolanaTokenAccountRequest,
+    type SolanaTokenAccountStatus,
+} from './bridge/solana.js'
 import {
     BASE_CHAIN_ID,
     ROBINHOOD_CHAIN_ID,
@@ -45,6 +64,8 @@ export interface ForeverMoneyClientOptions {
         readonly base: RpcTransport
         readonly robinhood?: RpcTransport
         readonly subtensor: RpcTransport
+        /** Solana JSON-RPC; required only for Solana routes. */
+        readonly solana?: RpcTransport
     }
 }
 
@@ -62,6 +83,24 @@ export interface ForeverMoneyClient {
         prepareSubtensorToBase(
             input: SubtensorToBaseRequest
         ): Promise<BridgePreparation>
+        prepareSubtensorToSolana(
+            input: SubtensorToSolanaRequest
+        ): Promise<SolanaBridgePreparation>
+        getSolanaTokenAccountStatus(
+            input: SolanaTokenAccountRequest
+        ): Promise<SolanaTokenAccountStatus>
+        getSolanaDeliveryCheckpoint(
+            input: SolanaDeliveryCheckpointRequest
+        ): Promise<SolanaDeliveryCheckpoint>
+        getSolanaDeliveryStatus(
+            input: SolanaDeliveryStatusRequest
+        ): Promise<CcipDeliveryStatus>
+        getSolanaSourceStatus(
+            input: SolanaSourceStatusRequest
+        ): Promise<SolanaSourceStatus>
+        getSolanaWalletBalances(
+            input: SolanaWalletBalancesRequest
+        ): Promise<SolanaWalletBalances>
         getDeliveryCheckpoint(
             direction: BridgeDirection
         ): Promise<CcipDeliveryCheckpoint>
@@ -116,6 +155,15 @@ export function createForeverMoneyClient(
     const robinhoodProvider = options.transports.robinhood
         ? providerFromTransport(options.transports.robinhood)
         : undefined
+    const solanaTransport = (): RpcTransport => {
+        if (options.transports.solana === undefined) {
+            throw new ForeverMoneyError(
+                'MISSING_TRANSPORT',
+                'A Solana transport is required for this operation.'
+            )
+        }
+        return options.transports.solana
+    }
     const verifyBaseConnection = async (): Promise<void> => {
         await assertProviderChain(baseProvider, BASE_CHAIN_ID, 'Base')
     }
@@ -184,6 +232,54 @@ export function createForeverMoneyClient(
                 return providerOperation(
                     'Preparing the Subtensor to Base bridge',
                     () => prepareSubtensorToBase(subtensorProvider, input)
+                )
+            },
+            async prepareSubtensorToSolana(input: SubtensorToSolanaRequest) {
+                const solana = solanaTransport()
+                await verifySubtensorConnection()
+                return providerOperation(
+                    'Preparing the Subtensor to Solana bridge',
+                    () =>
+                        prepareSubtensorToSolana(
+                            { subtensor: subtensorProvider, solana },
+                            input
+                        )
+                )
+            },
+            async getSolanaTokenAccountStatus(
+                input: SolanaTokenAccountRequest
+            ) {
+                const solana = solanaTransport()
+                return providerOperation(
+                    'Reading the Solana token account',
+                    () => getSolanaTokenAccountStatus(solana, input)
+                )
+            },
+            async getSolanaDeliveryCheckpoint(
+                input: SolanaDeliveryCheckpointRequest
+            ) {
+                const solana = solanaTransport()
+                return providerOperation(
+                    'Reading the Solana delivery checkpoint',
+                    () => getSolanaDeliveryCheckpoint(solana, input)
+                )
+            },
+            async getSolanaDeliveryStatus(input: SolanaDeliveryStatusRequest) {
+                const solana = solanaTransport()
+                return providerOperation('Reading Solana delivery status', () =>
+                    getSolanaDeliveryStatus(solana, input)
+                )
+            },
+            async getSolanaSourceStatus(input: SolanaSourceStatusRequest) {
+                const solana = solanaTransport()
+                return providerOperation('Reading the Solana send', () =>
+                    getSolanaSourceStatus(solana, input)
+                )
+            },
+            async getSolanaWalletBalances(input: SolanaWalletBalancesRequest) {
+                const solana = solanaTransport()
+                return providerOperation('Reading Solana balances', () =>
+                    getSolanaWalletBalances(solana, input)
                 )
             },
             async getDeliveryCheckpoint(direction: BridgeDirection) {

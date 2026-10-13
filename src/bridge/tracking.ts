@@ -14,10 +14,10 @@ import {
 import { foreverMoneyDeployment } from '../chains/deployment.js'
 import { ForeverMoneyError } from '../core/errors.js'
 import {
-    assertBridgeDirection,
     bridgeMessageIdFromReceipt,
     evmChainFromBridgeDirection,
     isEvmToSubtensorDirection,
+    isSolanaDirection,
     type BridgeDirection,
 } from './receipts.js'
 import { getForeverMoneyEvmDeployment } from '../chains/deployment.js'
@@ -111,7 +111,14 @@ export type BridgeSourceStatus =
       })
 
 export function destinationChainId(direction: BridgeDirection): number {
-    assertBridgeDirection(direction)
+    if (direction === 'solana-to-subtensor')
+        return foreverMoneyDeployment.subtensor.chainId
+    if (isSolanaDirection(direction)) {
+        throw new ForeverMoneyError(
+            'INVALID_TRANSACTION_PLAN',
+            'Solana is not an EVM chain; track Solana delivery with getSolanaDeliveryStatus.'
+        )
+    }
     const evm = getForeverMoneyEvmDeployment(
         evmChainFromBridgeDirection(direction)
     )
@@ -121,7 +128,14 @@ export function destinationChainId(direction: BridgeDirection): number {
 }
 
 export function sourceChainId(direction: BridgeDirection): number {
-    assertBridgeDirection(direction)
+    if (direction === 'solana-to-subtensor') {
+        throw new ForeverMoneyError(
+            'INVALID_TRANSACTION_PLAN',
+            'Solana is not an EVM chain; read the Solana send with getSolanaSourceStatus.'
+        )
+    }
+    if (isSolanaDirection(direction))
+        return foreverMoneyDeployment.subtensor.chainId
     const evm = getForeverMoneyEvmDeployment(
         evmChainFromBridgeDirection(direction)
     )
@@ -245,24 +259,13 @@ export async function getCcipDeliveryStatus(
     }
     await assertProviderChain(client, expectedChainId, 'Bridge destination')
 
-    const evmChain = evmChainFromBridgeDirection(input.direction)
-    const evm = getForeverMoneyEvmDeployment(evmChain)
-    const evmToSubtensor = isEvmToSubtensorDirection(input.direction)
-    const sourceSelector = evmToSubtensor
-        ? evm.ccipSelector
-        : foreverMoneyDeployment.subtensor.ccipSelector
-    const offRamp = evmToSubtensor
-        ? evmChain === 'base'
-            ? foreverMoneyDeployment.subtensor.contracts.ccipOffRampFromBase
-            : foreverMoneyDeployment.subtensor.contracts
-                  .ccipOffRampFromRobinhood
-        : evm.contracts.ccipOffRampFromSubtensor
+    const { router, sourceSelector, offRamp, toSubtensor } = deliveryLane(
+        input.direction
+    )
     const offRamps = await deliveryOffRamps(
         provider,
         client,
-        evmToSubtensor
-            ? foreverMoneyDeployment.subtensor.contracts.ccipRouter
-            : evm.contracts.ccipRouter,
+        router,
         sourceSelector,
         offRamp
     )
@@ -293,7 +296,7 @@ export async function getCcipDeliveryStatus(
     const state = latest.args.state
     if (state === 3) return 'failure'
     if (state !== 2) return 'waiting'
-    if (!evmToSubtensor) return 'success'
+    if (!toSubtensor) return 'success'
 
     const receipt = await receiptOrNull(client, latest.transactionHash!)
     if (receipt === null) {
@@ -302,9 +305,12 @@ export async function getCcipDeliveryStatus(
             'The CCIP execution receipt is unavailable.'
         )
     }
+    // Solana deliveries land on the V7 gateway; EVM ones on the current or a
+    // legacy gateway (spokes point at an immutable hub).
     const subtensorGateways = [
         ...foreverMoneyDeployment.subtensor.contracts.legacyGateways,
         foreverMoneyDeployment.subtensor.contracts.gateway,
+        foreverMoneyDeployment.subtensor.contracts.svmGateway,
     ]
     for (const log of receipt.logs) {
         if (
@@ -329,6 +335,38 @@ export async function getCcipDeliveryStatus(
         }
     }
     return 'success'
+}
+
+/** The CCIP lane a delivery executes on: destination router and off-ramp, and the source selector. */
+function deliveryLane(direction: BridgeDirection) {
+    const { subtensor, solana } = foreverMoneyDeployment
+    if (direction === 'solana-to-subtensor') {
+        return {
+            router: subtensor.contracts.ccipRouter,
+            sourceSelector: solana.ccipSelector,
+            offRamp: subtensor.contracts.ccipOffRampFromSolana,
+            toSubtensor: true,
+        }
+    }
+    const evmChain = evmChainFromBridgeDirection(direction)
+    const evm = getForeverMoneyEvmDeployment(evmChain)
+    if (isEvmToSubtensorDirection(direction)) {
+        return {
+            router: subtensor.contracts.ccipRouter,
+            sourceSelector: evm.ccipSelector,
+            offRamp:
+                evmChain === 'base'
+                    ? subtensor.contracts.ccipOffRampFromBase
+                    : subtensor.contracts.ccipOffRampFromRobinhood,
+            toSubtensor: true,
+        }
+    }
+    return {
+        router: evm.contracts.ccipRouter,
+        sourceSelector: subtensor.ccipSelector,
+        offRamp: evm.contracts.ccipOffRampFromSubtensor,
+        toSubtensor: false,
+    }
 }
 
 async function receiptOrNull(provider: PublicClient, hash: Hex) {

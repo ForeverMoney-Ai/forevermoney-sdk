@@ -7,6 +7,7 @@ export type TransactionAction =
     | 'bridge.robinhood-to-subtensor'
     | 'bridge.subtensor-to-base'
     | 'bridge.subtensor-to-robinhood'
+    | 'bridge.subtensor-to-solana'
     | 'vault.claim-fees'
     | 'vault.create'
     | 'vault.deposit'

@@ -7,11 +7,13 @@ export type ForeverMoneyErrorCode =
     | 'INVALID_BYTES32'
     | 'INVALID_PARTNER_FEE'
     | 'INVALID_PROVIDER_RESPONSE'
+    | 'INVALID_SOLANA_ADDRESS'
     | 'INVALID_SS58'
     | 'INVALID_TRANSACTION_PLAN'
     | 'MISSING_TRANSPORT'
     | 'RPC_ERROR'
     | 'SIMULATION_REVERTED'
+    | 'SOLANA_TOKEN_ACCOUNT_MISSING'
 
 export class ForeverMoneyError extends Error {
     readonly code: ForeverMoneyErrorCode
