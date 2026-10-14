@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.1
+
+- Lower `EVM_TO_SUBTENSOR_DESTINATION_GAS_LIMIT` from 3,500,000 to 300,000. Subtensor runtime 478 (RaoFoundation/subtensor#3233) sizes the staking precompile's stake-exit gas check to the caller's hotkey list instead of the 256-hotkey cap, so the Subtensor exit no longer needs ~2.3M gas up front. EVM-to-Subtensor bridge fees drop accordingly; `destinationGasLimit` still overrides per preparation.
+
 ## 0.6.0
 
 - Add Solana as a Subtensor bridge-out destination (SN80, staked source). Plans call the V7 hub gateway's `bridgeOutSvm` / `bridgeOutFromValidatorsSvm` at `subtensor.contracts.svmGateway` (`0x2E8219cC…`); Base and Robinhood stay on the existing hub gateway.

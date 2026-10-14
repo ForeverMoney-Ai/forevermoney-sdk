@@ -59,11 +59,11 @@ export const MIN_LIQUID_EVM_TO_SUBTENSOR_WEI = 10000000000000000n
 export const MIN_LIQUID_BASE_TO_SUBTENSOR_WEI = MIN_LIQUID_EVM_TO_SUBTENSOR_WEI
 // Subtensor's minimum new stake is 2,000,000 RAO (0.002 TAO).
 export const MIN_LIQUID_SUBTENSOR_TO_EVM_WEI = 2_000_000n * EVM_WEI_PER_RAO
-// The spoke contracts' original 300k default can no longer cover the variable
-// cost of a liquid AlphaVault exit on Subtensor. The live claim path currently
-// estimates near 2.56m; keep headroom so normal CCIP execution does not fall
-// back to a manual retry when the staking path becomes more expensive.
-export const EVM_TO_SUBTENSOR_DESTINATION_GAS_LIMIT = 3_500_000n
+// Subtensor runtime 478 sizes the staking precompile's stake-exit gas check to
+// the caller's hotkey list (RaoFoundation/subtensor#3233), so the AlphaVault
+// exit no longer needs ~2.3M gas up front and the spokes' 300k default covers
+// it again.
+export const EVM_TO_SUBTENSOR_DESTINATION_GAS_LIMIT = 300_000n
 function resolveDestinationGasLimit(value?: bigint): bigint {
     const gasLimit = value ?? EVM_TO_SUBTENSOR_DESTINATION_GAS_LIMIT
     if (typeof gasLimit !== 'bigint' || gasLimit <= 0n) {
