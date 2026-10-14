@@ -101,7 +101,7 @@ Liquid Base-to-Subtensor delivery requires at least `0.01 TAO` because the
 destination vault must unstake the bridged position. The SDK rejects smaller
 liquid deliveries with `AMOUNT_BELOW_MINIMUM` before quoting or planning them;
 staked delivery does not use this liquid-unstaking minimum.
-EVM-to-Subtensor plans quote and encode an explicit 3,500,000 destination gas
+EVM-to-Subtensor plans quote and encode an explicit 300,000 destination gas
 limit so the variable-cost Subtensor exit path can auto-execute through CCIP.
 The policy is exported as `EVM_TO_SUBTENSOR_DESTINATION_GAS_LIMIT`. Pass a
 positive bigint as `destinationGasLimit` to override it for one preparation or
