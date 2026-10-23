@@ -30,6 +30,7 @@ const expectedExports = [
     'SN78_NETUID',
     'SN80_NETUID',
     'SN8_NETUID',
+    'SN21_NETUID',
     'SOLANA_CCIP_SELECTOR',
     'SOLANA_TO_SUBTENSOR_DESTINATION_GAS_LIMIT',
     'SolanaAccountRole',
