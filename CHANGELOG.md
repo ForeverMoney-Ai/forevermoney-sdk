@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.2
+
+- Add Base-only AdTAO SN21 token metadata on Base and Subtensor, with staked bridge plans in both directions. Robinhood routes are rejected.
+- Export `SN21_NETUID`. Public token launch remains separately controlled.
+
 ## 0.6.1
 
 - Lower `EVM_TO_SUBTENSOR_DESTINATION_GAS_LIMIT` from 3,500,000 to 300,000. Subtensor runtime 478 (RaoFoundation/subtensor#3233) sizes the staking precompile's stake-exit gas check to the caller's hotkey list instead of the 256-hotkey cap, so the Subtensor exit no longer needs ~2.3M gas up front. EVM-to-Subtensor bridge fees drop accordingly; `destinationGasLimit` still overrides per preparation.

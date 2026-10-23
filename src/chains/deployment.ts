@@ -15,6 +15,7 @@ export const SN78_NETUID = 78n
 export const SN10_NETUID = 10n
 export const SN80_NETUID = 80n
 export const SN8_NETUID = 8n
+export const SN21_NETUID = 21n
 export const FOREVERMONEY_DEPLOYMENT_VERSION = '1.8.0' as const
 
 export const foreverMoneyDeployment = Object.freeze({
@@ -51,6 +52,9 @@ export const foreverMoneyDeployment = Object.freeze({
             ),
             wrappedSn8: getAddress(
                 '0xF1a8A3604898A4b0204A208df2955eD3428AABc5'
+            ),
+            wrappedSn21: getAddress(
+                '0xef869c6ff019a6331227C014A630D3E90E9aFC8E'
             ),
             ccipRouter: getAddress(
                 '0x881e3A65B4d4a04dD529061dd0071cf975F58bCD'
@@ -97,6 +101,7 @@ export const foreverMoneyDeployment = Object.freeze({
             wrappedSn8: getAddress(
                 '0xF1a8A3604898A4b0204A208df2955eD3428AABc5'
             ),
+            wrappedSn21: null,
             ccipRouter: getAddress(
                 '0x06fC836cf9839B1cd891C440A0a45242DA6Ae1c9'
             ),
@@ -119,6 +124,7 @@ export const foreverMoneyDeployment = Object.freeze({
             wrappedSn10: null,
             wrappedSn80: 'tarvwhnKDbAkNait5J52mDqsQ48q1sJt9kMhjZLhFH7',
             wrappedSn8: null,
+            wrappedSn21: null,
             tokenProgram: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
             associatedTokenProgram:
                 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL',
@@ -166,6 +172,9 @@ export const foreverMoneyDeployment = Object.freeze({
             ),
             wrappedSn8: getAddress(
                 '0x9066B1bfE9ff6A053FEC4C2e63d532ccD47FDbAd'
+            ),
+            wrappedSn21: getAddress(
+                '0xb75025fba9c8b6059eE87383D58CCadA4AD3C423'
             ),
             ccipRouter: getAddress(
                 '0xD941fBEcD2b971d0F54b4C34286C95faB52B60B8'
