@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.0
+
+- Move the Berachain royalty lane to the v2 deployment, whose Base tokens carry the real names and symbols (SAIL.r, COMPUTE.r): new bridge tokens, pools and RoyaltyGateway `0xE613EDBe…`. The v1 contracts (wSAIL.r / wCOMPUTE.r on Base) are superseded and hold no supply.
+- Breaking: `berachainRoyaltyAssets.*.wrapped` is renamed `bridgeToken`. `wrappedSymbol` is now only the Berachain wrapper's symbol.
+- Deployment metadata version 1.10.0.
+
 ## 0.7.0
 
 - Add Berachain (`80094`) as a Base-only lane for the LiquidRoyalty royalty tokens SAIL.r and COMPUTE.r: `berachainRoyaltyAssets`, `foreverMoneyDeployment.berachain`, and an optional `berachain` client transport.
