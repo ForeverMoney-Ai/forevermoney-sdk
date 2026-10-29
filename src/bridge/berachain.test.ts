@@ -71,7 +71,7 @@ describe('Berachain royalty bridge plans', () => {
             'transaction',
         ])
         expect(toBerachain.steps[0]!.transaction.to).toBe(
-            berachainRoyaltyAssets.computer.wrapped
+            berachainRoyaltyAssets.computer.bridgeToken
         )
         const toBase = buildBerachainToBasePlan({
             asset: 'computer',
@@ -185,7 +185,7 @@ describe('Berachain lane tracking', () => {
                 fixtures.baseToBerachain
             )
         ).toBe(
-            '0xbf0f2d35043c5583f1c920c47bc8e7f13d29011628b0e53dd77959d965187d7a'
+            '0x30b1e0d755b06f5e1f816eb99fe1e9f9812a758da131e49b4ed87abc424f1817'
         )
         expect(
             bridgeMessageIdFromReceipt(
@@ -193,7 +193,7 @@ describe('Berachain lane tracking', () => {
                 fixtures.berachainToBase
             )
         ).toBe(
-            '0x7b72ab1175e2262725ae4f14e96047983fa032f4bcb0c1e80e149ca5cc372997'
+            '0x24deb376b33e276ad7388edeec601e2621cfe759b48baf928610e16855cf1621'
         )
         // A send to the other chain is not this lane's message.
         expect(

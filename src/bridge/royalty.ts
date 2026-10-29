@@ -145,12 +145,12 @@ function assertPlanInputs(input: BuildRoyaltyBridgePlanRequest) {
 }
 
 /**
- * The CCIP message a Base to Berachain send carries: the wrapped token, to the
+ * The CCIP message a Base to Berachain send carries: the bridge token, to the
  * RoyaltyGateway, with the real recipient in `data`, so delivery unwraps and
  * pays out the real token in the same execution. The fee is paid in ETH.
  */
 function baseToBerachainMessage(
-    wrapped: Hex,
+    bridgeToken: Hex,
     amountWei: bigint,
     recipient: Hex
 ) {
@@ -159,7 +159,7 @@ function baseToBerachainMessage(
             foreverMoneyDeployment.berachain.contracts.royaltyGateway,
         ]),
         data: encodeAbiParameters(ADDRESS_PARAM, [recipient]),
-        tokenAmounts: [{ token: wrapped, amount: amountWei }],
+        tokenAmounts: [{ token: bridgeToken, amount: amountWei }],
         feeToken: zeroAddress,
         extraArgs: concatHex([
             EXTRA_ARGS_V2_TAG,
@@ -172,7 +172,7 @@ function baseToBerachainMessage(
 }
 
 function encodeBaseToBerachain(
-    wrapped: Hex,
+    bridgeToken: Hex,
     amountWei: bigint,
     recipient: Hex
 ): Hex {
@@ -181,25 +181,25 @@ function encodeBaseToBerachain(
         functionName: 'ccipSend',
         args: [
             foreverMoneyDeployment.berachain.ccipSelector,
-            baseToBerachainMessage(wrapped, amountWei, recipient),
+            baseToBerachainMessage(bridgeToken, amountWei, recipient),
         ],
     })
 }
 
 function encodeBerachainToBase(
-    wrapped: Hex,
+    bridgeToken: Hex,
     amountWei: bigint,
     recipient: Hex
 ): Hex {
     return encodeFunctionData({
         abi: gatewayAbi,
         functionName: 'wrapAndSend',
-        args: [wrapped, amountWei, recipient],
+        args: [bridgeToken, amountWei, recipient],
     })
 }
 
 /**
- * Base to Berachain: approve the Base router for the wrapped token, then
+ * Base to Berachain: approve the Base router for the bridge token, then
  * `ccipSend` it to the RoyaltyGateway, which pays the recipient the real token
  * on Berachain. Delivery waits for Base finality (~20 minutes).
  *
@@ -218,10 +218,10 @@ export function buildBaseToBerachainPlan(
             approval(
                 base.chainId,
                 sender,
-                asset.wrapped,
+                asset.bridgeToken,
                 base.contracts.ccipRouter,
                 input.amountWei,
-                `Approve ${asset.wrappedSymbol} for the CCIP router`
+                `Approve ${asset.symbol} for the CCIP router`
             )
         )
     }
@@ -232,7 +232,11 @@ export function buildBaseToBerachainPlan(
             base.chainId,
             sender,
             base.contracts.ccipRouter,
-            encodeBaseToBerachain(asset.wrapped, input.amountWei, recipient),
+            encodeBaseToBerachain(
+                asset.bridgeToken,
+                input.amountWei,
+                recipient
+            ),
             feeWithBuffer(input.exactNetworkFeeWei),
             input.estimatedBridgeGas === undefined
                 ? undefined
@@ -241,7 +245,7 @@ export function buildBaseToBerachainPlan(
     )
     return createTransactionPlan({
         action: 'bridge.base-to-berachain',
-        summary: `Bridge ${input.amountWei} wei of ${asset.wrappedSymbol} from Base to ${recipient} on ${berachain.name} as ${asset.symbol}.`,
+        summary: `Bridge ${input.amountWei} wei of ${asset.symbol} from Base to ${recipient} on ${berachain.name}.`,
         steps,
     })
 }
@@ -278,7 +282,11 @@ export function buildBerachainToBasePlan(
             berachain.chainId,
             sender,
             gateway,
-            encodeBerachainToBase(asset.wrapped, input.amountWei, recipient),
+            encodeBerachainToBase(
+                asset.bridgeToken,
+                input.amountWei,
+                recipient
+            ),
             feeWithBuffer(input.exactNetworkFeeWei),
             input.estimatedBridgeGas === undefined
                 ? undefined
@@ -287,7 +295,7 @@ export function buildBerachainToBasePlan(
     )
     return createTransactionPlan({
         action: 'bridge.berachain-to-base',
-        summary: `Bridge ${input.amountWei} wei of ${asset.symbol} from ${berachain.name} to ${recipient} on Base as ${asset.wrappedSymbol}.`,
+        summary: `Bridge ${input.amountWei} wei of ${asset.symbol} from ${berachain.name} to ${recipient} on Base.`,
         steps,
     })
 }
@@ -325,7 +333,7 @@ export async function prepareBaseToBerachain(
     const { base, berachain } = foreverMoneyDeployment
     const [allowanceWei, exactNetworkFeeWei] = await Promise.all([
         provider.readContract({
-            address: asset.wrapped,
+            address: asset.bridgeToken,
             abi: erc20Abi,
             functionName: 'allowance',
             args: [sender, base.contracts.ccipRouter],
@@ -337,7 +345,7 @@ export async function prepareBaseToBerachain(
             args: [
                 berachain.ccipSelector,
                 baseToBerachainMessage(
-                    asset.wrapped,
+                    asset.bridgeToken,
                     input.amountWei,
                     recipient
                 ),
@@ -357,7 +365,7 @@ export async function prepareBaseToBerachain(
                   account: sender,
                   to: base.contracts.ccipRouter,
                   data: encodeBaseToBerachain(
-                      asset.wrapped,
+                      asset.bridgeToken,
                       input.amountWei,
                       recipient
                   ),
@@ -394,7 +402,7 @@ export async function prepareBerachainToBase(
             address: gateway,
             abi: gatewayAbi,
             functionName: 'quoteWrapAndSend',
-            args: [asset.wrapped, input.amountWei, recipient],
+            args: [asset.bridgeToken, input.amountWei, recipient],
         }),
         assertWithinRateLimit(
             provider,
@@ -410,7 +418,7 @@ export async function prepareBerachainToBase(
                   account: sender,
                   to: gateway,
                   data: encodeBerachainToBase(
-                      asset.wrapped,
+                      asset.bridgeToken,
                       input.amountWei,
                       recipient
                   ),

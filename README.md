@@ -281,10 +281,11 @@ whole-RAO amounts bridge exactly).
 
 Berachain pairs with Base only; it has no CCIP lane to Subtensor. Its assets
 are the LiquidRoyalty royalty tokens SAIL.r (`asset: 'sailr'`) and COMPUTE.r
-(`asset: 'computer'`). CCIP carries ForeverMoney's 1:1 wrappers: wSAIL.r and
-wCOMPUTE.r, backed by the real token on Berachain and burn/mint on Base. Users
-hold the real token on Berachain and the wrapper on Base; the RoyaltyGateway
-wraps and unwraps inside the bridge transaction.
+(`asset: 'computer'`). Users hold the real token on Berachain and a bridged
+token with the same name and symbol on Base (`bridgeToken`, ForeverMoney's,
+not the issuer's). On Berachain, CCIP carries a 1:1 wrapper (wSAIL.r,
+wCOMPUTE.r); the RoyaltyGateway wraps and unwraps inside the bridge
+transaction, so users never hold it.
 
 Add a Berachain transport for Berachain-to-Base preparation:
 
@@ -297,7 +298,7 @@ const client = createForeverMoneyClient({
     },
 })
 
-// Berachain -> Base: SAIL.r in, wSAIL.r out, ~30 s. Fee paid in BERA.
+// Berachain -> Base: SAIL.r in, SAIL.r (bridged) out, ~30 s. Fee paid in BERA.
 await client.bridge.prepareBerachainToBase({
     asset: 'sailr',
     sender,
@@ -305,7 +306,7 @@ await client.bridge.prepareBerachainToBase({
     amountWei,
 })
 
-// Base -> Berachain: wSAIL.r in, SAIL.r out, ~20 min (Base finality). Fee in ETH.
+// Base -> Berachain: bridged SAIL.r in, real SAIL.r out, ~20 min. Fee in ETH.
 await client.bridge.prepareBaseToBerachain({
     asset: 'sailr',
     sender,
