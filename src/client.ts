@@ -30,7 +30,14 @@ import {
     type SolanaTokenAccountStatus,
 } from './bridge/solana.js'
 import {
+    prepareBaseToBerachain,
+    prepareBerachainToBase,
+    type RoyaltyBridgePreparation,
+    type RoyaltyBridgeRequest,
+} from './bridge/royalty.js'
+import {
     BASE_CHAIN_ID,
+    BERACHAIN_CHAIN_ID,
     ROBINHOOD_CHAIN_ID,
     SUBTENSOR_CHAIN_ID,
     getForeverMoneyEvmDeployment,
@@ -63,6 +70,8 @@ export interface ForeverMoneyClientOptions {
     readonly transports: {
         readonly base: RpcTransport
         readonly robinhood?: RpcTransport
+        /** Berachain EVM; required only for Berachain routes. */
+        readonly berachain?: RpcTransport
         readonly subtensor: RpcTransport
         /** Solana JSON-RPC; required only for Solana routes. */
         readonly solana?: RpcTransport
@@ -86,6 +95,12 @@ export interface ForeverMoneyClient {
         prepareSubtensorToSolana(
             input: SubtensorToSolanaRequest
         ): Promise<SolanaBridgePreparation>
+        prepareBaseToBerachain(
+            input: RoyaltyBridgeRequest
+        ): Promise<RoyaltyBridgePreparation>
+        prepareBerachainToBase(
+            input: RoyaltyBridgeRequest
+        ): Promise<RoyaltyBridgePreparation>
         getSolanaTokenAccountStatus(
             input: SolanaTokenAccountRequest
         ): Promise<SolanaTokenAccountStatus>
@@ -155,6 +170,9 @@ export function createForeverMoneyClient(
     const robinhoodProvider = options.transports.robinhood
         ? providerFromTransport(options.transports.robinhood)
         : undefined
+    const berachainProvider = options.transports.berachain
+        ? providerFromTransport(options.transports.berachain)
+        : undefined
     const solanaTransport = (): RpcTransport => {
         if (options.transports.solana === undefined) {
             throw new ForeverMoneyError(
@@ -182,10 +200,19 @@ export function createForeverMoneyClient(
             'Robinhood'
         )
     }
+    const verifyBerachainConnection = async (): Promise<void> => {
+        if (berachainProvider === undefined) return
+        await assertProviderChain(
+            berachainProvider,
+            BERACHAIN_CHAIN_ID,
+            'Berachain'
+        )
+    }
     const verifyConnections = async (): Promise<void> => {
         await Promise.all([
             verifyBaseConnection(),
             verifyRobinhoodConnection(),
+            verifyBerachainConnection(),
             verifySubtensorConnection(),
         ])
     }
@@ -194,6 +221,9 @@ export function createForeverMoneyClient(
         if (chainId === SUBTENSOR_CHAIN_ID) return subtensorProvider
         if (chainId === ROBINHOOD_CHAIN_ID && robinhoodProvider !== undefined) {
             return robinhoodProvider
+        }
+        if (chainId === BERACHAIN_CHAIN_ID && berachainProvider !== undefined) {
+            return berachainProvider
         }
         throw new ForeverMoneyError(
             'MISSING_TRANSPORT',
@@ -244,6 +274,25 @@ export function createForeverMoneyClient(
                             { subtensor: subtensorProvider, solana },
                             input
                         )
+                )
+            },
+            async prepareBaseToBerachain(input: RoyaltyBridgeRequest) {
+                await verifyBaseConnection()
+                return providerOperation(
+                    'Preparing the Base to Berachain bridge',
+                    () => prepareBaseToBerachain(baseProvider, input)
+                )
+            },
+            async prepareBerachainToBase(input: RoyaltyBridgeRequest) {
+                const provider = providerForChain(BERACHAIN_CHAIN_ID)
+                await assertProviderChain(
+                    provider,
+                    BERACHAIN_CHAIN_ID,
+                    'Berachain'
+                )
+                return providerOperation(
+                    'Preparing the Berachain to Base bridge',
+                    () => prepareBerachainToBase(provider, input)
                 )
             },
             async getSolanaTokenAccountStatus(

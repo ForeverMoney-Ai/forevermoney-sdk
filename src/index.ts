@@ -40,6 +40,15 @@ export {
     type SubtensorToBaseRequest,
     type SubtensorToEvmRequest,
 } from './bridge/plans.js'
+export {
+    BASE_TO_BERACHAIN_DESTINATION_GAS_LIMIT,
+    buildBaseToBerachainPlan,
+    buildBerachainToBasePlan,
+    royaltyAsset,
+    type BuildRoyaltyBridgePlanRequest,
+    type RoyaltyBridgePreparation,
+    type RoyaltyBridgeRequest,
+} from './bridge/royalty.js'
 export * from './client.js'
 export {
     getSolanaDeliveryCheckpoint,
@@ -84,6 +93,7 @@ export {
 export {
     bridgeMessageIdFromReceipt,
     evmChainFromBridgeDirection,
+    isBerachainDirection,
     isEvmToSubtensorDirection,
     isSolanaDirection,
     type BridgeDirection,

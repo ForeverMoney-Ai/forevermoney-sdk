@@ -16,6 +16,7 @@ import { ForeverMoneyError } from '../core/errors.js'
 import {
     bridgeMessageIdFromReceipt,
     evmChainFromBridgeDirection,
+    isBerachainDirection,
     isEvmToSubtensorDirection,
     isSolanaDirection,
     type BridgeDirection,
@@ -111,6 +112,11 @@ export type BridgeSourceStatus =
       })
 
 export function destinationChainId(direction: BridgeDirection): number {
+    if (isBerachainDirection(direction)) {
+        return direction === 'base-to-berachain'
+            ? foreverMoneyDeployment.berachain.chainId
+            : foreverMoneyDeployment.base.chainId
+    }
     if (direction === 'solana-to-subtensor')
         return foreverMoneyDeployment.subtensor.chainId
     if (isSolanaDirection(direction)) {
@@ -128,6 +134,11 @@ export function destinationChainId(direction: BridgeDirection): number {
 }
 
 export function sourceChainId(direction: BridgeDirection): number {
+    if (isBerachainDirection(direction)) {
+        return direction === 'base-to-berachain'
+            ? foreverMoneyDeployment.base.chainId
+            : foreverMoneyDeployment.berachain.chainId
+    }
     if (direction === 'solana-to-subtensor') {
         throw new ForeverMoneyError(
             'INVALID_TRANSACTION_PLAN',
@@ -339,7 +350,23 @@ export async function getCcipDeliveryStatus(
 
 /** The CCIP lane a delivery executes on: destination router and off-ramp, and the source selector. */
 function deliveryLane(direction: BridgeDirection) {
-    const { subtensor, solana } = foreverMoneyDeployment
+    const { base, berachain, subtensor, solana } = foreverMoneyDeployment
+    if (direction === 'base-to-berachain') {
+        return {
+            router: berachain.contracts.ccipRouter,
+            sourceSelector: base.ccipSelector,
+            offRamp: berachain.contracts.ccipOffRampFromBase,
+            toSubtensor: false,
+        }
+    }
+    if (direction === 'berachain-to-base') {
+        return {
+            router: base.contracts.ccipRouter,
+            sourceSelector: berachain.ccipSelector,
+            offRamp: base.contracts.ccipOffRampFromBerachain,
+            toSubtensor: false,
+        }
+    }
     if (direction === 'solana-to-subtensor') {
         return {
             router: subtensor.contracts.ccipRouter,

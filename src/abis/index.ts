@@ -88,6 +88,17 @@ export const CCIP_EXECUTION_ABI = Object.freeze([
 export const CCIP_ROUTER_ABI = Object.freeze([
     'function isOffRamp(uint64 sourceChainSelector,address offRamp) view returns (bool)',
     'function getOffRamps() view returns ((uint64 sourceChainSelector,address offRamp)[])',
+    'function getFee(uint64 destinationChainSelector,(bytes receiver,bytes data,(address token,uint256 amount)[] tokenAmounts,address feeToken,bytes extraArgs) message) view returns (uint256 fee)',
+    'function ccipSend(uint64 destinationChainSelector,(bytes receiver,bytes data,(address token,uint256 amount)[] tokenAmounts,address feeToken,bytes extraArgs) message) payable returns (bytes32)',
+] as const)
+
+export const ROYALTY_GATEWAY_ABI = Object.freeze([
+    'function quoteWrapAndSend(address wrapped,uint256 amount,address receiver) view returns (uint256 fee)',
+    'function wrapAndSend(address wrapped,uint256 amount,address receiver) payable returns (bytes32 messageId)',
+] as const)
+
+export const CCIP_TOKEN_POOL_ABI = Object.freeze([
+    'function getCurrentOutboundRateLimiterState(uint64 remoteChainSelector) view returns ((uint128 tokens,uint32 lastUpdated,bool isEnabled,uint128 capacity,uint128 rate))',
 ] as const)
 
 export const foreverMoneyAbis = Object.freeze({
@@ -95,6 +106,8 @@ export const foreverMoneyAbis = Object.freeze({
     alphaVault: ALPHA_VAULT_ABI,
     ccipExecution: CCIP_EXECUTION_ABI,
     ccipRouter: CCIP_ROUTER_ABI,
+    ccipTokenPool: CCIP_TOKEN_POOL_ABI,
+    royaltyGateway: ROYALTY_GATEWAY_ABI,
     erc20: ERC20_ABI,
     spokeGateway: SPOKE_GATEWAY_ABI,
     staking: STAKING_ABI,
