@@ -1,4 +1,5 @@
 export type ForeverMoneyErrorCode =
+    | 'AMOUNT_ABOVE_RATE_LIMIT'
     | 'AMOUNT_BELOW_MINIMUM'
     | 'AMOUNT_NOT_WHOLE_RAO'
     | 'AMOUNT_ZERO'

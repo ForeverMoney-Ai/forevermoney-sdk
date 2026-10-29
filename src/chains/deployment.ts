@@ -2,9 +2,11 @@ import { getAddress } from 'viem'
 
 export const BASE_CHAIN_ID = 8453
 export const ROBINHOOD_CHAIN_ID = 4663
+export const BERACHAIN_CHAIN_ID = 80094
 export const SUBTENSOR_CHAIN_ID = 964
 export const BASE_CCIP_SELECTOR = 15_971_525_489_660_198_786n
 export const ROBINHOOD_CCIP_SELECTOR = 6_180_753_054_346_818_345n
+export const BERACHAIN_CCIP_SELECTOR = 1_294_465_214_383_781_161n
 export const SUBTENSOR_CCIP_SELECTOR = 2_135_107_236_357_186_872n
 export const SOLANA_CCIP_SELECTOR = 124_615_329_519_749_607n
 export const RAO_PER_TAO = 1_000_000_000n
@@ -16,7 +18,7 @@ export const SN10_NETUID = 10n
 export const SN80_NETUID = 80n
 export const SN8_NETUID = 8n
 export const SN21_NETUID = 21n
-export const FOREVERMONEY_DEPLOYMENT_VERSION = '1.8.0' as const
+export const FOREVERMONEY_DEPLOYMENT_VERSION = '1.9.0' as const
 
 export const foreverMoneyDeployment = Object.freeze({
     version: FOREVERMONEY_DEPLOYMENT_VERSION,
@@ -61,6 +63,9 @@ export const foreverMoneyDeployment = Object.freeze({
             ),
             ccipOffRampFromSubtensor: getAddress(
                 '0xf09AFe78d3c7d359b334d7cB88995751F7eC5E13'
+            ),
+            ccipOffRampFromBerachain: getAddress(
+                '0x16E577f1724AE2598F9b43a52C19E6f67eE13808'
             ),
             vaultFactory: getAddress(
                 '0x9b7F3c7aa335D8BF9f91741E541820466735F868'
@@ -108,6 +113,28 @@ export const foreverMoneyDeployment = Object.freeze({
             ccipOffRampFromSubtensor: getAddress(
                 '0xcDca5D374e46A6DDDab50bD2D9acB8c796eC35C3'
             ),
+        }),
+    }),
+    // Berachain pairs with Base only: it has no CCIP lane to Subtensor, and its
+    // assets are LiquidRoyalty royalty tokens, not Finney stake positions.
+    berachain: Object.freeze({
+        key: 'berachain',
+        name: 'Berachain',
+        chainId: BERACHAIN_CHAIN_ID,
+        ccipSelector: BERACHAIN_CCIP_SELECTOR,
+        contracts: Object.freeze({
+            // Immutable RoyaltyGateway: wraps and sends to Base in one
+            // transaction, and unwraps deliveries from Base to the recipient.
+            royaltyGateway: getAddress(
+                '0x7d9d97e28a71F0e99B09c018081144D4Ad005CAD'
+            ),
+            ccipRouter: getAddress(
+                '0x71a275704c283486fBa26dad3dd0DB78804426eF'
+            ),
+            ccipOffRampFromBase: getAddress(
+                '0x303f55ab6b48DB4619C27802EA4c47f9F4E779dD'
+            ),
+            wbera: getAddress('0x6969696969696969696969696969696969696969'),
         }),
     }),
     solana: Object.freeze({
@@ -203,3 +230,34 @@ export function getForeverMoneyEvmDeployment(
 ): ForeverMoneyDeployment['base'] | ForeverMoneyDeployment['robinhood'] {
     return foreverMoneyDeployment[chain]
 }
+
+export type BerachainRoyaltyAsset = 'sailr' | 'computer'
+
+/**
+ * LiquidRoyalty royalty tokens bridged between Berachain and Base. The issuer
+ * owns the real tokens, so CCIP carries our 1:1 wrappers instead: a
+ * `RoyaltyWrapper` on Berachain holding the real token, and a burn/mint copy on
+ * Base. Wrapper and pool sit at the same address on both chains.
+ */
+export const berachainRoyaltyAssets = Object.freeze({
+    sailr: Object.freeze({
+        key: 'sailr',
+        symbol: 'SAIL.r',
+        wrappedSymbol: 'wSAIL.r',
+        name: 'SailOut Royalty',
+        decimals: 18,
+        underlying: getAddress('0x59a61B8d3064A51a95a5D6393c03e2152b1a2770'),
+        wrapped: getAddress('0x86189C219330ad165803De9d0E7822c161243321'),
+        pool: getAddress('0x376AF902a9A7a6393B4Db886dD03Ba7DA84455B3'),
+    }),
+    computer: Object.freeze({
+        key: 'computer',
+        symbol: 'COMPUTE.r',
+        wrappedSymbol: 'wCOMPUTE.r',
+        name: 'Compute Royalty',
+        decimals: 18,
+        underlying: getAddress('0xB8CD0b8E056A91c00FD388EdDb37E6E445844B21'),
+        wrapped: getAddress('0x43fF4eF914D9E2Fe82393c7221eCd2D40D01325B'),
+        pool: getAddress('0x8a899B2A55Ed35f5EBfB7FB6D18dDB457B0A332A'),
+    }),
+})

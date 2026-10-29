@@ -277,6 +277,49 @@ const status = await foreverMoney.bridge.getSolanaDeliveryStatus({
 SN80 mint on Solana: `tarvwhnKDbAkNait5J52mDqsQ48q1sJt9kMhjZLhFH7` (9 decimals;
 whole-RAO amounts bridge exactly).
 
+## Bridge SAIL.r and COMPUTE.r between Base and Berachain
+
+Berachain pairs with Base only; it has no CCIP lane to Subtensor. Its assets
+are the LiquidRoyalty royalty tokens SAIL.r (`asset: 'sailr'`) and COMPUTE.r
+(`asset: 'computer'`). CCIP carries ForeverMoney's 1:1 wrappers: wSAIL.r and
+wCOMPUTE.r, backed by the real token on Berachain and burn/mint on Base. Users
+hold the real token on Berachain and the wrapper on Base; the RoyaltyGateway
+wraps and unwraps inside the bridge transaction.
+
+Add a Berachain transport for Berachain-to-Base preparation:
+
+```ts
+const client = createForeverMoneyClient({
+    transports: {
+        base: http(process.env.BASE_RPC_URL),
+        berachain: http(process.env.BERACHAIN_RPC_URL),
+        subtensor: http(process.env.SUBTENSOR_RPC_URL),
+    },
+})
+
+// Berachain -> Base: SAIL.r in, wSAIL.r out, ~30 s. Fee paid in BERA.
+await client.bridge.prepareBerachainToBase({
+    asset: 'sailr',
+    sender,
+    recipient,
+    amountWei,
+})
+
+// Base -> Berachain: wSAIL.r in, SAIL.r out, ~20 min (Base finality). Fee in ETH.
+await client.bridge.prepareBaseToBerachain({
+    asset: 'sailr',
+    sender,
+    recipient,
+    amountWei,
+})
+```
+
+Track with the directions `'berachain-to-base'` and `'base-to-berachain'`.
+The CCIP fee is flat (about $0.26) whatever the amount, so show it before
+sending. Each pool has a 25,000-token outbound bucket refilling at 7 tokens/s;
+preparation throws `AMOUNT_ABOVE_RATE_LIMIT` above what is available. Contract
+addresses are in `berachainRoyaltyAssets` and `foreverMoneyDeployment.berachain`.
+
 ## Bridge stake held with several validators
 
 Staked alpha on Finney is keyed by validator hotkey, and a bridge can only pull

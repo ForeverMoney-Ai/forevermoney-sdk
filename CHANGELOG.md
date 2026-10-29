@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.0
+
+- Add Berachain (`80094`) as a Base-only lane for the LiquidRoyalty royalty tokens SAIL.r and COMPUTE.r: `berachainRoyaltyAssets`, `foreverMoneyDeployment.berachain`, and an optional `berachain` client transport.
+- Add `prepareBerachainToBase` (RoyaltyGateway `wrapAndSend`) and `prepareBaseToBerachain` (router `ccipSend` to the gateway, which unwraps on delivery), with plan builders, `AMOUNT_ABOVE_RATE_LIMIT` pre-checks and `base-to-berachain` / `berachain-to-base` tracking directions.
+- Deployment metadata version 1.9.0.
+
 ## 0.6.2
 
 - Add Base-only AdTAO SN21 token metadata on Base and Subtensor, with staked bridge plans in both directions. Robinhood routes are rejected.

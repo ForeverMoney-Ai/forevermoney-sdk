@@ -3,7 +3,9 @@ import { FOREVERMONEY_DEPLOYMENT_VERSION } from '../chains/deployment.js'
 
 export type TransactionStepKind = 'approval' | 'transaction'
 export type TransactionAction =
+    | 'bridge.base-to-berachain'
     | 'bridge.base-to-subtensor'
+    | 'bridge.berachain-to-base'
     | 'bridge.robinhood-to-subtensor'
     | 'bridge.subtensor-to-base'
     | 'bridge.subtensor-to-robinhood'
