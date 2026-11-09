@@ -18,7 +18,7 @@ export const SN10_NETUID = 10n
 export const SN80_NETUID = 80n
 export const SN8_NETUID = 8n
 export const SN21_NETUID = 21n
-export const FOREVERMONEY_DEPLOYMENT_VERSION = '1.10.0' as const
+export const FOREVERMONEY_DEPLOYMENT_VERSION = '1.11.0' as const
 
 export const foreverMoneyDeployment = Object.freeze({
     version: FOREVERMONEY_DEPLOYMENT_VERSION,
@@ -235,11 +235,17 @@ export type BerachainRoyaltyAsset = 'sailr' | 'computer'
 
 /**
  * LiquidRoyalty royalty tokens bridged between Berachain and Base. The issuer
- * owns the real tokens, so CCIP carries our 1:1 wrapper instead: a
- * `RoyaltyWrapper` (`wrappedSymbol`) on Berachain holding the real token, and a
- * burn/mint token on Base carrying the real name and `symbol`. `bridgeToken`
- * and `pool` sit at the same address on both chains. Users hold the real token
- * on Berachain and `bridgeToken` on Base; the gateway wraps and unwraps.
+ * owns the real token (`underlying`, on Berachain), so CCIP carries our 1:1
+ * `RoyaltyWrapper` (`wrapper`, `wrappedSymbol`) on Berachain, locked in
+ * `berachainPool`, and mints `baseToken` on Base from `basePool`. `baseToken`
+ * carries the real name and `symbol`. Users hold the real token on Berachain
+ * and `baseToken` on Base; the gateway wraps and unwraps inside the bridge.
+ *
+ * SAIL.r still has its wrapper and pool at one address on both chains.
+ * COMPUTE.r's Base token moved on 9 Nov 2026 to the real token's address
+ * (`0xB8CD…`, a burn/mint token on Base) with a new Base pool; the old Base
+ * token `0x63b8…` is superseded and its lane stays open only so holders can
+ * exit.
  */
 export const berachainRoyaltyAssets = Object.freeze({
     sailr: Object.freeze({
@@ -249,8 +255,10 @@ export const berachainRoyaltyAssets = Object.freeze({
         name: 'SailOut Royalty',
         decimals: 18,
         underlying: getAddress('0x59a61B8d3064A51a95a5D6393c03e2152b1a2770'),
-        bridgeToken: getAddress('0xF998567525cC145E3ffF843E295DE4CCe9EFf0A0'),
-        pool: getAddress('0x9eaDcf51ff381b411EA4b1cddbDBB74494520719'),
+        wrapper: getAddress('0xF998567525cC145E3ffF843E295DE4CCe9EFf0A0'),
+        berachainPool: getAddress('0x9eaDcf51ff381b411EA4b1cddbDBB74494520719'),
+        baseToken: getAddress('0xF998567525cC145E3ffF843E295DE4CCe9EFf0A0'),
+        basePool: getAddress('0x9eaDcf51ff381b411EA4b1cddbDBB74494520719'),
     }),
     computer: Object.freeze({
         key: 'computer',
@@ -259,7 +267,9 @@ export const berachainRoyaltyAssets = Object.freeze({
         name: 'Compute Royalty',
         decimals: 18,
         underlying: getAddress('0xB8CD0b8E056A91c00FD388EdDb37E6E445844B21'),
-        bridgeToken: getAddress('0x63b8738c85A5e69Ad6c6201C696fC942698274dD'),
-        pool: getAddress('0xDf0a6B030c8aC4CCCf9373e3973D6BD4C4d9AE06'),
+        wrapper: getAddress('0x63b8738c85A5e69Ad6c6201C696fC942698274dD'),
+        berachainPool: getAddress('0xDf0a6B030c8aC4CCCf9373e3973D6BD4C4d9AE06'),
+        baseToken: getAddress('0xB8CD0b8E056A91c00FD388EdDb37E6E445844B21'),
+        basePool: getAddress('0xC316DFea204529e73a8c9b26A8e2c3eaaF7a0547'),
     }),
 })

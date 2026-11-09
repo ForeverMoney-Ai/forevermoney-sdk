@@ -71,7 +71,7 @@ describe('Berachain royalty bridge plans', () => {
             'transaction',
         ])
         expect(toBerachain.steps[0]!.transaction.to).toBe(
-            berachainRoyaltyAssets.computer.bridgeToken
+            berachainRoyaltyAssets.computer.baseToken
         )
         const toBase = buildBerachainToBasePlan({
             asset: 'computer',
@@ -135,7 +135,7 @@ describe('Berachain royalty bridge preparation', () => {
         expect(prepared.plan.steps).toHaveLength(1)
         expect(readContract).toHaveBeenCalledWith(
             expect.objectContaining({
-                address: berachainRoyaltyAssets.sailr.pool,
+                address: berachainRoyaltyAssets.sailr.basePool,
                 args: [berachain.ccipSelector],
             })
         )
