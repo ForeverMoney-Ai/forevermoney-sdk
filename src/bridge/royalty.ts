@@ -232,11 +232,7 @@ export function buildBaseToBerachainPlan(
             base.chainId,
             sender,
             base.contracts.ccipRouter,
-            encodeBaseToBerachain(
-                asset.baseToken,
-                input.amountWei,
-                recipient
-            ),
+            encodeBaseToBerachain(asset.baseToken, input.amountWei, recipient),
             feeWithBuffer(input.exactNetworkFeeWei),
             input.estimatedBridgeGas === undefined
                 ? undefined
@@ -282,11 +278,7 @@ export function buildBerachainToBasePlan(
             berachain.chainId,
             sender,
             gateway,
-            encodeBerachainToBase(
-                asset.wrapper,
-                input.amountWei,
-                recipient
-            ),
+            encodeBerachainToBase(asset.wrapper, input.amountWei, recipient),
             feeWithBuffer(input.exactNetworkFeeWei),
             input.estimatedBridgeGas === undefined
                 ? undefined
