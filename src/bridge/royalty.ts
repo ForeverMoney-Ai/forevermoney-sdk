@@ -218,7 +218,7 @@ export function buildBaseToBerachainPlan(
             approval(
                 base.chainId,
                 sender,
-                asset.bridgeToken,
+                asset.baseToken,
                 base.contracts.ccipRouter,
                 input.amountWei,
                 `Approve ${asset.symbol} for the CCIP router`
@@ -233,7 +233,7 @@ export function buildBaseToBerachainPlan(
             sender,
             base.contracts.ccipRouter,
             encodeBaseToBerachain(
-                asset.bridgeToken,
+                asset.baseToken,
                 input.amountWei,
                 recipient
             ),
@@ -283,7 +283,7 @@ export function buildBerachainToBasePlan(
             sender,
             gateway,
             encodeBerachainToBase(
-                asset.bridgeToken,
+                asset.wrapper,
                 input.amountWei,
                 recipient
             ),
@@ -333,7 +333,7 @@ export async function prepareBaseToBerachain(
     const { base, berachain } = foreverMoneyDeployment
     const [allowanceWei, exactNetworkFeeWei] = await Promise.all([
         provider.readContract({
-            address: asset.bridgeToken,
+            address: asset.baseToken,
             abi: erc20Abi,
             functionName: 'allowance',
             args: [sender, base.contracts.ccipRouter],
@@ -345,7 +345,7 @@ export async function prepareBaseToBerachain(
             args: [
                 berachain.ccipSelector,
                 baseToBerachainMessage(
-                    asset.bridgeToken,
+                    asset.baseToken,
                     input.amountWei,
                     recipient
                 ),
@@ -353,7 +353,7 @@ export async function prepareBaseToBerachain(
         }),
         assertWithinRateLimit(
             provider,
-            asset.pool,
+            asset.basePool,
             berachain.ccipSelector,
             input.amountWei
         ),
@@ -365,7 +365,7 @@ export async function prepareBaseToBerachain(
                   account: sender,
                   to: base.contracts.ccipRouter,
                   data: encodeBaseToBerachain(
-                      asset.bridgeToken,
+                      asset.baseToken,
                       input.amountWei,
                       recipient
                   ),
@@ -402,11 +402,11 @@ export async function prepareBerachainToBase(
             address: gateway,
             abi: gatewayAbi,
             functionName: 'quoteWrapAndSend',
-            args: [asset.bridgeToken, input.amountWei, recipient],
+            args: [asset.wrapper, input.amountWei, recipient],
         }),
         assertWithinRateLimit(
             provider,
-            asset.pool,
+            asset.berachainPool,
             base.ccipSelector,
             input.amountWei
         ),
@@ -418,7 +418,7 @@ export async function prepareBerachainToBase(
                   account: sender,
                   to: gateway,
                   data: encodeBerachainToBase(
-                      asset.bridgeToken,
+                      asset.wrapper,
                       input.amountWei,
                       recipient
                   ),

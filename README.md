@@ -281,11 +281,13 @@ whole-RAO amounts bridge exactly).
 
 Berachain pairs with Base only; it has no CCIP lane to Subtensor. Its assets
 are the LiquidRoyalty royalty tokens SAIL.r (`asset: 'sailr'`) and COMPUTE.r
-(`asset: 'computer'`). Users hold the real token on Berachain and a bridged
-token with the same name and symbol on Base (`bridgeToken`, ForeverMoney's,
-not the issuer's). On Berachain, CCIP carries a 1:1 wrapper (wSAIL.r,
-wCOMPUTE.r); the RoyaltyGateway wraps and unwraps inside the bridge
-transaction, so users never hold it.
+(`asset: 'computer'`). Users hold the real token on Berachain (`underlying`) and
+a bridged token with the same name and symbol on Base (`baseToken`,
+ForeverMoney's, not the issuer's; COMPUTE.r's sits at the real token's address
+`0xB8CD…`). On Berachain, CCIP carries a 1:1 wrapper (`wrapper`: wSAIL.r,
+wCOMPUTE.r) locked in `berachainPool`, and mints `baseToken` from `basePool`;
+the RoyaltyGateway wraps and unwraps inside the bridge transaction, so users
+never hold the wrapper.
 
 Add a Berachain transport for Berachain-to-Base preparation:
 

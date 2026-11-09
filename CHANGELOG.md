@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.0
+
+- Move COMPUTE.r's Base side to its 9 Nov 2026 deployment: the Base token is now `0xB8CD0b8E…` (the real token's address, a burn/mint token on Base) with a new Base pool `0xC316DFea…`. The Berachain wrapper wCOMPUTE.r `0x63b8738c…` and its lock/release pool `0xDf0a6B03…` are unchanged. The old Base token `0x63b8738c…` is superseded; its lane stays open only so holders can exit.
+- Breaking: `berachainRoyaltyAssets.*.bridgeToken` and `.pool` are replaced by per-chain fields `baseToken`, `basePool`, `wrapper` and `berachainPool`, since the two sides no longer share addresses. SAIL.r's values are unchanged on both sides.
+- Deployment metadata version 1.11.0.
+
 ## 0.8.0
 
 - Move the Berachain royalty lane to the v2 deployment, whose Base tokens carry the real names and symbols (SAIL.r, COMPUTE.r): new bridge tokens, pools and RoyaltyGateway `0xE613EDBe…`. The v1 contracts (wSAIL.r / wCOMPUTE.r on Base) are superseded and hold no supply.
